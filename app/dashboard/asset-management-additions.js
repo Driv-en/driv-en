@@ -557,9 +557,12 @@ if (typeof MutationObserver !== 'undefined') {
 
 // ═══════════════════════════════════════════════════════════════
 // SET MAP MODE FALLBACK — if setMapMode not defined in main JS
+// Handles: forms (asset GPS), projects (geocoded addresses),
+//          breadcrumb (fuel purchase locations as trail)
 // ═══════════════════════════════════════════════════════════════
 if (typeof setMapMode !== 'function') {
   window.setMapMode = function(mode) {
+    console.log('[AM-Additions] setMapMode:', mode);
     mapMode = mode;
     var formsBtn = document.getElementById('amMapModeForms');
     var projBtn = document.getElementById('amMapModeProjects');
@@ -571,14 +574,17 @@ if (typeof setMapMode !== 'function') {
     if (bcBtn) bcBtn.classList.remove('active');
     if (bcSelect) bcSelect.style.display = 'none';
     if (bcRange) bcRange.style.display = 'none';
-    if (mode === 'forms' && formsBtn) formsBtn.classList.add('active');
-    if (mode === 'projects' && projBtn) { projBtn.classList.add('active'); }
-    if (mode === 'breadcrumb') {
-      if (bcBtn) bcBtn.classList.add('active');
-      if (bcSelect) bcSelect.style.display = 'inline-block';
-      if (bcRange) bcRange.style.display = 'inline-block';
-      // Populate asset dropdown
-      if (bcSelect && allAssets) {
+
+    if (mode === 'forms' && formsBtn) {
+      formsBtn.classList.add('active');
+      renderFormsView();
+    } else if (mode === 'projects' && projBtn) {
+      projBtn.classList.add('active');
+      renderProjectsView();
+    } else if (mode === 'breadcrumb' && bcBtn) {
+      bcBtn.classList.add('active');
+      if (bcSelect) {
+        bcSelect.style.display = 'inline-block';
         bcSelect.innerHTML = '<option value="">— Select Asset —</option>';
         allAssets.forEach(function(a) {
           var opt = document.createElement('option');
@@ -586,29 +592,167 @@ if (typeof setMapMode !== 'function') {
           opt.textContent = a.assetNumber || a.type || 'Asset ' + a.id;
           bcSelect.appendChild(opt);
         });
+        bcSelect.onchange = function() { renderBreadcrumbTrail(); };
       }
-    }
-    // Re-render pins
-    if (amMapInstance && typeof renderAssetMapPins === 'function') {
-      renderAssetMapPins();
-    } else if (amMapInstance) {
-      // Fallback: re-add markers
-      if (amClusterGroup) amClusterGroup.clearLayers();
-      var bounds = [];
-      allAssets.forEach(function(a) {
-        var lat = parseFloat(a.latitude || a.gpsLat || a.lat || a.Latitude || a.gps_latitude || a.current_latitude || a.lastKnownLat);
-        var lng = parseFloat(a.longitude || a.gpsLng || a.lng || a.lon || a.Longitude || a.gps_longitude || a.current_longitude || a.lastKnownLng);
-        if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-          var marker = L.marker([lat, lng]);
-          marker.bindPopup('<div class="am-map-popup"><h4>' + escapeHtml(a.assetNumber || a.type || 'Asset') + '</h4><p>' + escapeHtml(a.status || '') + '</p></div>');
-          amClusterGroup.addLayer(marker);
-          bounds.push([lat, lng]);
-        }
-      });
-      if (bounds.length > 0) amMapInstance.fitBounds(bounds, { padding: [50, 50] });
+      if (bcRange) {
+        bcRange.style.display = 'inline-block';
+        bcRange.onchange = function() { renderBreadcrumbTrail(); };
+      }
+      if (bcSelect.value) renderBreadcrumbTrail();
     }
   };
-  console.log('setMapMode fallback defined');
+  console.log('[AM-Additions] setMapMode fallback defined');
+}
+
+// ── Geocode helper using Nominatim (free OpenStreetMap geocoder) ──
+var geocodeCache = {};
+function geocodeAddress(address) {
+  return new Promise(function(resolve) {
+    if (!address || address.trim().length < 5) { resolve(null); return; }
+    if (geocodeCache[address]) { resolve(geocodeCache[address]); return; }
+    fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(address) + '&limit=1', {
+      headers: { 'Accept': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.length > 0) {
+        var coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        geocodeCache[address] = coords;
+        resolve(coords);
+      } else {
+        resolve(null);
+      }
+    })
+    .catch(function() { resolve(null); });
+  });
+}
+
+// ── Forms View: show assets at their GPS coordinates ──
+function renderFormsView() {
+  if (!amMapInstance) return;
+  if (amClusterGroup) amClusterGroup.clearLayers();
+  var bounds = [];
+  allAssets.forEach(function(a) {
+    var lat = parseFloat(a.formLat || a.baseLat || a.lat || a.latitude);
+    var lng = parseFloat(a.formLng || a.baseLng || a.lng || a.longitude);
+    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+      var marker = L.marker([lat, lng]);
+      marker.bindPopup('<div class="am-map-popup"><h4>' + escapeHtml(a.assetNumber || a.type || 'Asset') + '</h4><p>' + escapeHtml(a.status || '') + '</p><p class="popup-meta">' + escapeHtml(a.formLocation || a.baseLocation || a.location || '') + '</p></div>');
+      amClusterGroup.addLayer(marker);
+      bounds.push([lat, lng]);
+    }
+  });
+  if (bounds.length > 0) amMapInstance.fitBounds(bounds, { padding: [50, 50] });
+  else amMapInstance.setView([39.5, -98.35], 4);
+}
+
+// ── Projects View: fetch projects, geocode addresses, place markers ──
+function renderProjectsView() {
+  if (!amMapInstance) return;
+  if (amClusterGroup) amClusterGroup.clearLayers();
+  amMapInstance.setView([39.5, -98.35], 4);
+
+  fetch('/api/projects')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var projects = data.projects || data.records || data || [];
+      if (!Array.isArray(projects)) projects = [];
+      console.log('[AM-Additions] Projects fetched:', projects.length);
+      if (projects.length === 0) {
+        var note = L.popup().setLatLng([39.5, -98.35]).setContent('<div class="am-map-popup"><p>No projects found.</p></div>').openOn(amMapInstance);
+        return;
+      }
+      var bounds = [];
+      var pending = 0;
+      projects.forEach(function(p) {
+        var addr = p.location || p.address || p.city || '';
+        if (!addr) return;
+        pending++;
+        geocodeAddress(addr).then(function(coords) {
+          pending--;
+          if (coords) {
+            var marker = L.marker([coords.lat, coords.lng]);
+            marker.bindPopup('<div class="am-map-popup"><h4>' + escapeHtml(p.name || 'Project') + '</h4><p class="popup-meta">' + escapeHtml(p.code || '') + '</p><p>' + escapeHtml(addr) + '</p></div>');
+            amClusterGroup.addLayer(marker);
+            bounds.push([coords.lat, coords.lng]);
+          }
+          if (pending === 0 && bounds.length > 0) {
+            amMapInstance.fitBounds(bounds, { padding: [50, 50] });
+          }
+        });
+      });
+    })
+    .catch(function(e) { console.error('[AM-Additions] Projects fetch error:', e); });
+}
+
+// ── Breadcrumb Trail: fetch fuel transactions for asset, geocode, draw trail ──
+function renderBreadcrumbTrail() {
+  if (!amMapInstance) return;
+  if (amClusterGroup) amClusterGroup.clearLayers();
+  var bcSelect = document.getElementById('amBreadcrumbAssetSelect');
+  var bcRange = document.getElementById('amBreadcrumbDateRange');
+  var assetId = bcSelect ? bcSelect.value : '';
+  if (!assetId) { amMapInstance.setView([39.5, -98.35], 4); return; }
+
+  var dateFilter = '';
+  if (bcRange && bcRange.value === 'today') dateFilter = '&days=1';
+  else if (bcRange && bcRange.value === '7days') dateFilter = '&days=7';
+  else if (bcRange && bcRange.value === '30days') dateFilter = '&days=30';
+
+  // Try fuel transactions endpoint
+  fetch('/api/fuel-transactions?asset_id=' + encodeURIComponent(assetId) + dateFilter)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var txns = data.transactions || data.records || data || [];
+      if (!Array.isArray(txns)) txns = [];
+      console.log('[AM-Additions] Fuel transactions fetched:', txns.length);
+      if (txns.length === 0) {
+        // Try fuel purchases as fallback
+        return fetch('/api/fuel-purchases?asset_id=' + encodeURIComponent(assetId) + dateFilter)
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            var purchases = d.purchases || d.records || d || [];
+            if (!Array.isArray(purchases)) purchases = [];
+            processBreadcrumbData(purchases, 'vendor_address');
+          });
+      }
+      processBreadcrumbData(txns, 'location');
+    })
+    .catch(function(e) { console.error('[AM-Additions] Breadcrumb fetch error:', e); });
+}
+
+function processBreadcrumbData(items, addressField) {
+  if (!amMapInstance || !amClusterGroup) return;
+  if (amClusterGroup) amClusterGroup.clearLayers();
+  // Remove any existing polyline
+  if (window._breadcrumbLine) { amMapInstance.removeLayer(window._breadcrumbLine); window._breadcrumbLine = null; }
+
+  var points = [];
+  var pending = 0;
+  items.forEach(function(item) {
+    var addr = item[addressField] || item.location || item.vendor_address || '';
+    if (!addr && item.vendor_city) addr = (item.vendor_address || '') + ' ' + item.vendor_city + ' ' + (item.vendor_state || '');
+    if (!addr || addr.trim().length < 5) return;
+    pending++;
+    geocodeAddress(addr).then(function(coords) {
+      pending--;
+      if (coords) {
+        var marker = L.marker([coords.lat, coords.lng]);
+        var label = item.transaction_date || item.purchase_date || item.created_at || '';
+        marker.bindPopup('<div class="am-map-popup"><h4>Fuel Stop</h4><p>' + escapeHtml(addr) + '</p><p class="popup-meta">' + escapeHtml(label) + '</p></div>');
+        amClusterGroup.addLayer(marker);
+        points.push([coords.lat, coords.lng]);
+      }
+      if (pending === 0 && points.length > 1) {
+        window._breadcrumbLine = L.polyline(points, { color: '#16a34a', weight: 3, opacity: 0.7 }).addTo(amMapInstance);
+        amMapInstance.fitBounds(window._breadcrumbLine.getBounds(), { padding: [50, 50] });
+      } else if (pending === 0 && points.length === 1) {
+        amMapInstance.setView(points[0], 13);
+      } else if (pending === 0) {
+        amMapInstance.setView([39.5, -98.35], 4);
+      }
+    });
+  });
 }
 
 // Patch the dashSessionLoaded handler to call loadAmColOrder + setupInfoModals + KPI fix + header cleanup
