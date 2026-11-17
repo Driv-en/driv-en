@@ -433,7 +433,7 @@
       };
     }
 
-/* Dynamic Activity History Engine * /
+/* Dynamic Activity History Engine */
     async function applyLatestLocationActivity(assets) {
       try {
         var ci = localStorage.getItem('driven_customer_id') || localStorage.getItem('driven_org_id') || 'org_test';
