@@ -601,6 +601,8 @@ window.setMapMode = function(mode) {
     if (bcBtn) bcBtn.classList.remove('active');
     if (bcSelect) bcSelect.style.display = 'none';
     if (bcRange) bcRange.style.display = 'none';
+    var bcFormLabel = document.getElementById('amBcFormEntryLabel');
+    if (bcFormLabel) bcFormLabel.style.display = 'none';
 
     if (mode === 'forms' && formsBtn) {
       formsBtn.classList.add('active');
@@ -646,6 +648,17 @@ window.setMapMode = function(mode) {
         bcRange.onchange = function() { renderBreadcrumbTrail(); };
       }
       updateDaysFilterVisibility();
+      // Show the form entry locations checkbox
+      var bcFormLabel = document.getElementById('amBcFormEntryLabel');
+      if (bcFormLabel) {
+        bcFormLabel.style.display = 'inline-flex';
+        bcFormLabel.style.alignItems = 'center';
+        var bcFormCheck = document.getElementById('amBcFormEntryLocations');
+        if (bcFormCheck) {
+          bcFormCheck.checked = false; // default: don't show form entry locations for fuel
+          bcFormCheck.onchange = function() { renderBreadcrumbTrail(); };
+        }
+      }
       renderBreadcrumbTrail(); // auto-load with All Active Assets default
     }
   };
@@ -684,23 +697,73 @@ function geocodeAddress(address, hintState) {
   });
 }
 
-// ── Forms View: show assets at their GPS coordinates ──
+// ── Forms View: show all form submissions with GPS on the map ──
 function renderFormsView() {
   if (!amMapInstance) return;
   if (amClusterGroup) amClusterGroup.clearLayers();
-  var bounds = [];
-  allAssets.forEach(function(a) {
-    var lat = parseFloat(a.formLat || a.baseLat || a.lat || a.latitude);
-    var lng = parseFloat(a.formLng || a.baseLng || a.lng || a.longitude);
-    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-      var marker = L.marker([lat, lng]);
-      marker.bindPopup('<div class="am-map-popup"><h4>' + escapeHtml(a.assetNumber || a.type || 'Asset') + '</h4><p>' + escapeHtml(a.status || '') + '</p><p class="popup-meta">' + escapeHtml(a.formLocation || a.baseLocation || a.location || '') + '</p></div>');
-      amClusterGroup.addLayer(marker);
-      bounds.push([lat, lng]);
-    }
-  });
-  if (bounds.length > 0) amMapInstance.fitBounds(bounds, { padding: [50, 50] });
-  else amMapInstance.setView([39.5, -98.35], 4);
+  if (window._breadcrumbLine) { amMapInstance.removeLayer(window._breadcrumbLine); window._breadcrumbLine = null; }
+  if (window._bcLegend) { amMapInstance.removeControl(window._bcLegend); window._bcLegend = null; }
+  amMapInstance.setView([39.5, -98.35], 4);
+
+  // Fetch fuel transactions (which are form submissions with GPS coordinates)
+  var now = new Date();
+  var fromStr = now.getFullYear() + '-01-01';
+  var toStr = now.toISOString().split('T')[0];
+
+  fetch('/api/fuel-transactions?from=' + fromStr + '&to=' + toStr)
+    .then(function(r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      var items = data.transactions || data.records || data || [];
+      if (!Array.isArray(items)) items = [];
+      console.log('[AM-Additions] Forms View: fetched', items.length, 'form submissions');
+
+      var bounds = [];
+      items.forEach(function(item) {
+        var lat = parseFloat(item.latitude || item.lat);
+        var lng = parseFloat(item.longitude || item.lng || item.lon);
+        var date = item.transaction_date || item.purchase_date || item.created_at || '';
+        var assetLabel = item.asset_number || item.asset_name || '';
+        var vendorAddr = '';
+        if (item.vendor) vendorAddr = item.vendor;
+        if (item.address) vendorAddr += (vendorAddr ? ' — ' : '') + item.address;
+        if (item.city) vendorAddr += ', ' + item.city;
+        else if (item.vendor_city) vendorAddr += ', ' + item.vendor_city;
+        if (item.state) vendorAddr += ', ' + item.state;
+        else if (item.vendor_state) vendorAddr += ', ' + item.vendor_state;
+
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+          var icon = createPinIcon(PIN_COLORS.form);
+          var marker = L.marker([lat, lng], { icon: icon });
+          var popupHtml = '<div class="am-map-popup"><h4>Form Entry</h4>';
+          if (assetLabel) popupHtml += '<p><strong>' + escapeHtml(assetLabel) + '</strong></p>';
+          popupHtml += '<p class="popup-meta">User location: ' + lat.toFixed(4) + ', ' + lng.toFixed(4) + '</p>';
+          if (vendorAddr) popupHtml += '<p>Vendor: ' + escapeHtml(vendorAddr) + '</p>';
+          if (date) popupHtml += '<p class="popup-meta">' + escapeHtml(formatDateTime(date)) + '</p>';
+          popupHtml += '</div>';
+          marker.bindPopup(popupHtml);
+          amClusterGroup.addLayer(marker);
+          bounds.push([lat, lng]);
+        }
+      });
+
+      if (bounds.length > 0) {
+        amMapInstance.fitBounds(bounds, { padding: [50, 50] });
+      } else {
+        // No GPS data — show message
+        var note = L.popup().setLatLng([39.5, -98.35])
+          .setContent('<div class="am-map-popup"><h4>No form GPS data</h4><p>No form submissions with GPS coordinates found for this period.</p></div>')
+          .openOn(amMapInstance);
+      }
+    })
+    .catch(function(e) {
+      console.log('[AM-Additions] Forms View: API not available');
+      var note = L.popup().setLatLng([39.5, -98.35])
+        .setContent('<div class="am-map-popup"><h4>Unable to load forms</h4><p>Form data API is not available.</p></div>')
+        .openOn(amMapInstance);
+    });
 }
 
 // ── Projects View: fetch projects, geocode addresses, place markers ──
@@ -872,35 +935,79 @@ function renderBreadcrumbTrail() {
         var items = data.transactions || data.purchases || data.records || data.results || data || [];
         if (!Array.isArray(items)) items = [];
         console.log('[AM-Additions] ' + label + ' fetched:', items.length, 'items');
+
+        // Check if user wants to see form entry locations for fuel purchases
+        var showFormEntry = false;
+        var formCheck = document.getElementById('amBcFormEntryLocations');
+        if (formCheck) showFormEntry = formCheck.checked;
+
         items.forEach(function(item) {
-          // Use the user's GPS coordinates from the form submission
-          var lat = parseFloat(item.latitude || item.lat || item.gps_lat || item.formLat);
-          var lng = parseFloat(item.longitude || item.lng || item.gps_lng || item.lon || item.formLng);
+          // User's GPS location (where they were when they submitted the form)
+          var userLat = parseFloat(item.latitude || item.lat || item.gps_lat || item.formLat);
+          var userLng = parseFloat(item.longitude || item.lng || item.gps_lng || item.lon || item.formLng);
           var date = item.transaction_date || item.purchase_date || item.created_at || item.submitted_at || item.date || '';
-          
-          // Build vendor address for popup (from receipt — may differ from user's GPS location)
+
+          // Build vendor/store address from the receipt
           var vendorAddr = '';
           if (item.vendor) vendorAddr = item.vendor;
           if (item.address) vendorAddr += (vendorAddr ? ' — ' : '') + item.address;
-          else if (item[addrField] && item[addrField] !== item.location) vendorAddr += (vendorAddr ? ' — ' : '') + item[addrField];
           if (item.city) vendorAddr += (vendorAddr ? ', ' : '') + item.city;
           else if (item.vendor_city) vendorAddr += (vendorAddr ? ', ' : '') + item.vendor_city;
           if (item.state) vendorAddr += ', ' + item.state;
           else if (item.vendor_state) vendorAddr += ', ' + item.vendor_state;
           if (item.zip) vendorAddr += ' ' + item.zip;
           else if (item.vendor_zip) vendorAddr += ' ' + item.vendor_zip;
-          
-          // Get asset identifier from the JOIN
+
           var assetLabel = item.asset_number || item.asset_name || item.assetNumber || '';
-          
-          if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-            allPoints.push({ lat: lat, lng: lng, type: pinType, label: label, date: date, addr: vendorAddr, asset: assetLabel, hasGPS: true });
-          } else if (vendorAddr && vendorAddr.trim().length >= 5) {
-            // Extract state from the transaction data to help geocoding
-            var stateHint = item.state || item.vendor_state || '';
+          var stateHint = item.state || item.vendor_state || '';
+
+          // ── GREEN PIN: at the store/vendor location (from receipt) ──
+          // This is the actual fuel purchase location
+          if (vendorAddr && vendorAddr.trim().length >= 5) {
+            // Try to geocode the vendor address
             geocodeAddress(vendorAddr, stateHint).then(function(coords) {
               if (coords) {
-                allPoints.push({ lat: coords.lat, lng: coords.lng, type: pinType, label: label, date: date, addr: vendorAddr, asset: assetLabel, hasGPS: false });
+                allPoints.push({
+                  lat: coords.lat, lng: coords.lng,
+                  type: 'fuel', label: 'Fuel Purchase',
+                  date: date, addr: vendorAddr, asset: assetLabel,
+                  hasGPS: false
+                });
+                checkAllDone();
+              }
+            });
+          }
+
+          // ── BLUE PIN: at the user's GPS location (where they submitted the form) ──
+          // Only for fuel purchases, and only if the checkbox is checked
+          // (users often enter fuel data at night from home, so this is optional)
+          if (pinType === 'fuel' && showFormEntry && !isNaN(userLat) && !isNaN(userLng) && userLat !== 0 && userLng !== 0) {
+            allPoints.push({
+              lat: userLat, lng: userLng,
+              type: 'form', label: 'Form Entry Location',
+              date: date, addr: 'User location: ' + userLat.toFixed(4) + ', ' + userLng.toFixed(4),
+              asset: assetLabel, hasGPS: true
+            });
+          }
+
+          // ── For non-fuel activity types: always use user's GPS ──
+          if (pinType !== 'fuel' && !isNaN(userLat) && !isNaN(userLng) && userLat !== 0 && userLng !== 0) {
+            allPoints.push({
+              lat: userLat, lng: userLng,
+              type: pinType, label: label,
+              date: date, addr: vendorAddr || '',
+              asset: assetLabel, hasGPS: true
+            });
+          } else if (pinType !== 'fuel' && vendorAddr && vendorAddr.trim().length >= 5) {
+            // Non-fuel with no GPS but has address — geocode it
+            geocodeAddress(vendorAddr, stateHint).then(function(coords) {
+              if (coords) {
+                allPoints.push({
+                  lat: coords.lat, lng: coords.lng,
+                  type: pinType, label: label,
+                  date: date, addr: vendorAddr, asset: assetLabel,
+                  hasGPS: false
+                });
                 checkAllDone();
               }
             });
@@ -966,7 +1073,7 @@ function drawActivityPins(points) {
     if (p.asset) popupHtml += '<p><strong>' + escapeHtml(p.asset) + '</strong></p>';
     if (p.addr) popupHtml += '<p>' + escapeHtml(p.addr) + '</p>';
     if (!p.hasGPS) popupHtml += '<p class="popup-meta">(geocoded from address)</p>';
-    if (p.date) popupHtml += '<p class="popup-meta">' + escapeHtml(p.date) + '</p>';
+    if (p.date) popupHtml += '<p class="popup-meta">' + escapeHtml(formatDateTime(p.date)) + '</p>';
     popupHtml += '</div>';
     marker.bindPopup(popupHtml);
     amClusterGroup.addLayer(marker);
@@ -1004,6 +1111,34 @@ document.addEventListener('dashSessionLoaded', function() {
 }, true);
 
 console.log('[AM-Additions] Fully loaded — all patches and fixes applied');
+
+// ═══════════════════════════════════════════════════════════════
+// FORMAT DATE/TIME — converts ISO timestamp to local 12-hour format
+// Shows date and time in the user's timezone with AM/PM
+// ═══════════════════════════════════════════════════════════════
+function formatDateTime(dateStr) {
+  if (!dateStr) return '';
+  try {
+    var d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr; // return as-is if can't parse
+
+    // Format: MM/DD/YYYY, HH:MM:SS AM/PM (in user's local timezone)
+    var month = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    var year = d.getFullYear();
+
+    var hours = d.getHours();
+    var ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    var minutes = String(d.getMinutes()).padStart(2, '0');
+    var seconds = String(d.getSeconds()).padStart(2, '0');
+
+    return month + '/' + day + '/' + year + ', ' + hours + ':' + minutes + ':' + seconds + ' ' + ampm;
+  } catch(e) {
+    return dateStr; // return as-is on error
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // WELCOME CARD — populate from dashUser (same logic as admin dashboard)
