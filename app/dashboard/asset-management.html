@@ -199,6 +199,7 @@
 <div class="am-tab-bar">
   <div class="am-tab active" data-tab="assets" onclick="switchTab('assets')">Assets</div>
   <div class="am-tab" data-tab="addasset" onclick="switchTab('addasset')">Add New Asset</div>
+  <div class="am-tab" data-tab="bulkvin" onclick="switchTab('bulkvin')">Bulk Add by VIN</div>
   <div class="am-tab" data-tab="inspections" onclick="switchTab('inspections')">Asset Inspections</div>
   <div class="am-tab" data-tab="workorders" onclick="switchTab('workorders')">Asset Work Orders</div>
   <div class="am-tab" data-tab="transfers" onclick="switchTab('transfers')">Asset Transfers</div>
@@ -408,6 +409,67 @@
 
       <button class="am-btn-primary" id="btnAddAsset" onclick="addAsset()">Add Asset</button>
       <button class="am-btn-secondary" onclick="resetAddForm()" style="margin-left:8px;">Clear Form</button>
+    </div>
+  </div>
+
+  <!-- ===== BULK ADD BY VIN TAB ===== -->
+  <div class="am-tab-content" id="tab-bulkvin" style="display:none;">
+    <div class="am-section-header">
+      <h3>Bulk Add Assets by VIN</h3>
+    </div>
+    <div class="am-form-card" style="max-width:900px;">
+      <p style="margin:0 0 16px;color:var(--text-muted);font-size:14px;">
+        Paste a list of VINs below (one per line). Each VIN will be decoded via the NHTSA vPIC database.
+        Decoded vehicles can be created as assets in one step — make, model, year, engine, fuel type, and recalls are auto-populated.
+      </p>
+      <textarea id="bulkVinInput" rows="10" style="width:100%;font-family:monospace;font-size:14px;padding:12px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;"
+        placeholder="1FTFW1ET5DFC10312&#10;5TFAY5F18LX123456&#10;4V4NC9EJ8EN123456&#10;...one VIN per line"></textarea>
+      <div style="display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;align-items:end;">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Default Location</label>
+          <select id="bulkLocation" style="min-width:180px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text);">
+            <option value="">— None —</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Default Status</label>
+          <select id="bulkStatus" style="min-width:140px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text);">
+            <option value="Active">Active</option>
+            <option value="Available">Available</option>
+            <option value="In Use">In Use</option>
+            <option value="Maintenance">Maintenance</option>
+          </select>
+        </div>
+        <button class="am-btn-primary" id="btnBulkDecode" onclick="bulkDecodeVINs()" style="white-space:nowrap;">Decode All VINs</button>
+      </div>
+    </div>
+
+    <!-- Results section (hidden until decoded) -->
+    <div id="bulkResultsSection" style="display:none;margin-top:20px;max-width:900px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="margin:0;">Decode Results</h3>
+        <div id="bulkSummary" style="font-size:14px;font-weight:600;color:var(--text-muted);"></div>
+      </div>
+      <div class="am-table-scroll" style="max-height:400px;">
+        <table class="am-table" id="bulkResultsTable">
+          <thead>
+            <tr>
+              <th>VIN</th>
+              <th>Make</th>
+              <th>Model</th>
+              <th>Year</th>
+              <th>Fuel</th>
+              <th>Recalls</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="bulkResultsBody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px;">
+        <button class="am-btn-primary" id="btnBulkCreate" onclick="createBulkAssets()">Create <span id="bulkCreateCount">0</span> Assets</button>
+        <button class="am-btn-secondary" onclick="switchTab('assets')">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -739,6 +801,7 @@ async function syncSettings() {
   populateDropdown('amAssetType', assetTypes);
   populateDropdown('amProject', projects, true);
   populateDropdown('amLocation', locations, true);
+  populateDropdown('bulkLocation', locations, true);
   populateDropdown('amEditAssetType', assetTypes);
   populateDropdown('amEditProject', projects, true);
   populateDropdown('amEditLocation', locations, true);
@@ -747,8 +810,9 @@ async function syncSettings() {
   filterType.innerHTML = '<option value="">All Types</option>';
   assetTypes.forEach(function(at) {
     var opt = document.createElement('option');
-    opt.value = at.name;
-    opt.textContent = at.name;
+    var val = typeof at === 'string' ? at : (at.name || at.id || String(at));
+    opt.value = val;
+    opt.textContent = val;
     filterType.appendChild(opt);
   });
 }
@@ -770,8 +834,9 @@ function populateDropdown(selectId, items, includeNone) {
   }
   items.forEach(function(item) {
     var opt = document.createElement('option');
-    opt.value = item.name;
-    opt.textContent = item.name;
+    var val = typeof item === 'string' ? item : (item.name || item.id || String(item));
+    opt.value = val;
+    opt.textContent = val;
     sel.appendChild(opt);
   });
   // Only restore previous value if it still exists in the new options
@@ -1469,6 +1534,163 @@ function showAddMessage(msg, type) {
   el.className = 'am-message ' + type;
   el.style.display = 'block';
   setTimeout(function() { el.style.display = 'none'; }, 5000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BULK VIN DECODE + ASSET CREATION
+// ═══════════════════════════════════════════════════════════════
+var bulkDecodeResults = [];
+
+async function bulkDecodeVINs() {
+  var input = document.getElementById('bulkVinInput').value.trim();
+  if (!input) { showAddMessage('Please paste at least one VIN.', 'error'); return; }
+
+  // Parse VINs — one per line, also handle comma-separated
+  var vins = input.split(/[\n,;]/).map(function(v) { return v.trim(); }).filter(function(v) { return v.length > 0; });
+  if (vins.length === 0) { showAddMessage('No VINs found in input.', 'error'); return; }
+  if (vins.length > 500) { showAddMessage('Maximum 500 VINs per batch.', 'error'); return; }
+
+  var btn = document.getElementById('btnBulkDecode');
+  btn.disabled = true;
+  btn.textContent = 'Decoding ' + vins.length + ' VINs...';
+
+  var defaultLocation = document.getElementById('bulkLocation').value;
+  var defaultStatus = document.getElementById('bulkStatus').value;
+
+  try {
+    var resp = await fetch('/api/vin-decode/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vins: vins,
+        createAssets: false
+      })
+    });
+
+    var data = await resp.json();
+
+    if (!data.success) {
+      showAddMessage(data.error || 'Batch decode failed.', 'error');
+      return;
+    }
+
+    bulkDecodeResults = data.results || [];
+
+    // Render results table
+    var tbody = document.getElementById('bulkResultsBody');
+    tbody.innerHTML = '';
+
+    var successCount = 0;
+    var failCount = 0;
+    var recallCount = 0;
+
+    bulkDecodeResults.forEach(function(r) {
+      var tr = document.createElement('tr');
+      if (!r.success) {
+        failCount++;
+        tr.innerHTML = '<td style="font-family:monospace;">' + escapeHtml(r.vin) + '</td>' +
+          '<td colspan="5" style="color:#dc2626;">' + escapeHtml(r.error || 'Failed') + '</td>' +
+          '<td style="color:#dc2626;font-weight:600;">✗ Failed</td>';
+      } else {
+        successCount++;
+        if (r.recallCount > 0) recallCount++;
+        var v = r.vehicle;
+        tr.innerHTML =
+          '<td style="font-family:monospace;">' + escapeHtml(r.vin) + '</td>' +
+          '<td>' + escapeHtml(v.make || '') + '</td>' +
+          '<td>' + escapeHtml(v.model || '') + '</td>' +
+          '<td>' + escapeHtml(v.modelYear || '') + '</td>' +
+          '<td>' + escapeHtml(v.fuelTypePrimary || '') + '</td>' +
+          '<td>' + (r.recallCount > 0 ? '<span style="color:#dc2626;font-weight:600;">' + r.recallCount + ' open</span>' : 'None') + '</td>' +
+          '<td style="color:#16a34a;font-weight:600;">✓ Decoded</td>';
+      }
+      tbody.appendChild(tr);
+    });
+
+    // Show summary
+    var summary = document.getElementById('bulkSummary');
+    summary.innerHTML = '<span style="color:#16a34a;">' + successCount + ' decoded</span> · ' +
+      '<span style="color:#dc2626;">' + failCount + ' failed</span>' +
+      (recallCount > 0 ? ' · <span style="color:#dc2626;">' + recallCount + ' with recalls</span>' : '');
+
+    // Show results + create button
+    document.getElementById('bulkResultsSection').style.display = 'block';
+    document.getElementById('bulkCreateCount').textContent = successCount;
+
+    // Store defaults for asset creation
+    bulkDecodeResults._defaultLocation = defaultLocation;
+    bulkDecodeResults._defaultStatus = defaultStatus;
+
+  } catch (e) {
+    showAddMessage('Batch decode error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Decode All VINs';
+  }
+}
+
+async function createBulkAssets() {
+  var successResults = bulkDecodeResults.filter(function(r) { return r.success; });
+  if (successResults.length === 0) { showAddMessage('No decoded VINs to create.', 'error'); return; }
+
+  var btn = document.getElementById('btnBulkCreate');
+  btn.disabled = true;
+  btn.textContent = 'Creating ' + successResults.length + ' assets...';
+
+  var defaultLocation = bulkDecodeResults._defaultLocation || '';
+  var defaultStatus = bulkDecodeResults._defaultStatus || 'Active';
+
+  // Find location_id from the locations array
+  var locationId = null;
+  if (defaultLocation) {
+    var loc = locations.find(function(l) { return l.name === defaultLocation || l.id === defaultLocation; });
+    if (loc) locationId = loc.id;
+  }
+
+  try {
+    var resp = await fetch('/api/vin-decode/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vins: successResults.map(function(r) { return r.vin; }),
+        createAssets: true,
+        defaults: {
+          location: defaultLocation || null,
+          location_id: locationId,
+          status: defaultStatus
+        }
+      })
+    });
+
+    var data = await resp.json();
+
+    if (!data.success) {
+      showAddMessage('Asset creation failed: ' + (data.error || 'Unknown error'), 'error');
+      return;
+    }
+
+    showAddMessage(data.assetsCreated + ' assets created successfully. ' + (successResults.length - data.assetsCreated) + ' failed.', 'success');
+
+    // Reset UI
+    document.getElementById('bulkVinInput').value = '';
+    document.getElementById('bulkResultsSection').style.display = 'none';
+    bulkDecodeResults = [];
+
+    // Reload assets table
+    await loadAssets();
+    switchTab('assets');
+
+  } catch (e) {
+    showAddMessage('Asset creation error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create ' + successResults.length + ' Assets';
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function resetAddForm() {
