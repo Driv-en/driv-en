@@ -355,12 +355,16 @@ function updateKpiFix() {
     var s = (a.status || 'Unknown').toLowerCase();
     counts[s] = (counts[s] || 0) + 1;
   });
+  // Convert status key to camelCase: "in use" → "InUse"
+  function toCamel(s) {
+    return s.split(/\s+/).map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join('');
+  }
   // Try every possible KPI element ID pattern
   var patterns = [
-    function(s) { return 'amKpi' + s.charAt(0).toUpperCase() + s.slice(1); },
-    function(s) { return 'kpi' + s.charAt(0).toUpperCase() + s.slice(1); },
-    function(s) { return 'am-kpi-' + s; },
-    function(s) { return 'kpi-' + s; }
+    function(s) { return 'amKpi' + toCamel(s); },
+    function(s) { return 'kpi' + toCamel(s); },
+    function(s) { return 'am-kpi-' + s.replace(/\s+/g, '-'); },
+    function(s) { return 'kpi-' + s.replace(/\s+/g, '-'); }
   ];
   Object.keys(counts).forEach(function(key) {
     for (var p = 0; p < patterns.length; p++) {
@@ -406,14 +410,32 @@ switchTab = function(tab) {
   if (tab === 'location' || tab === 'overview') {
     ensureLeaflet(function() {
       setTimeout(function() {
+        var container = document.getElementById('amAssetMap');
+        if (!container) {
+          console.error('Map container #amAssetMap not found');
+          return;
+        }
         if (typeof initAssetMap === 'function') {
           if (!amMapInstance) {
+            console.log('Initializing asset map...');
             initAssetMap();
+            // Force size recalculation after init
+            setTimeout(function() {
+              if (amMapInstance) {
+                amMapInstance.invalidateSize();
+                console.log('Map initialized and sized');
+              } else {
+                console.error('initAssetMap did not create amMapInstance');
+              }
+            }, 300);
           } else {
             amMapInstance.invalidateSize();
+            console.log('Map resized');
           }
+        } else {
+          console.error('initAssetMap function not found');
         }
-      }, 200);
+      }, 300);
     });
   }
 };
