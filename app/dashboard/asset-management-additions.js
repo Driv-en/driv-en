@@ -295,7 +295,10 @@ async function createBulkAssets() {
 // The following overrides should be placed AFTER the original
 // function definitions. JavaScript allows redefining functions.
 
+console.log('[AM-Additions] Loading asset-management-additions.js...');
+
 // Patch addAsset to include D1 default overrides + dot_regulated
+if (typeof addAsset === 'function') {
 var _originalAddAsset = addAsset;
 addAsset = async function() {
   // Call the original function but intercept the payload
@@ -336,13 +339,16 @@ addAsset = async function() {
   };
   return _originalAddAsset.apply(this, arguments);
 };
+} // end if typeof addAsset
 
 // Patch renderTableHead to call attachAmDragDrop after rendering
+if (typeof renderTableHead === 'function') {
 var _originalRenderTableHead = renderTableHead;
 renderTableHead = function() {
   _originalRenderTableHead.apply(this, arguments);
   attachAmDragDrop();
 };
+} // end if
 
 // ═══════════════════════════════════════════════════════════════
 // KPI FIX — robust updater that works regardless of element IDs
@@ -375,11 +381,13 @@ function updateKpiFix() {
 }
 
 // Patch renderAssetTable to also update KPIs
+if (typeof renderAssetTable === 'function') {
 var _originalRenderAssetTable = renderAssetTable;
 renderAssetTable = function() {
   _originalRenderAssetTable.apply(this, arguments);
   updateKpiFix();
 };
+} // end if
 
 // ═══════════════════════════════════════════════════════════════
 // MAP FIX — ensure Leaflet loads and map initializes
@@ -404,6 +412,7 @@ function ensureLeaflet(callback) {
 }
 
 // Patch switchTab to ensure Leaflet + map init for location tab
+if (typeof switchTab === 'function') {
 var _originalSwitchTab = switchTab;
 switchTab = function(tab) {
   _originalSwitchTab.apply(this, arguments);
@@ -449,6 +458,7 @@ switchTab = function(tab) {
     });
   }
 };
+} // end if typeof switchTab
 
 // Fallback map: creates a basic Leaflet map with markers from allAssets
 function createFallbackMap(container) {
@@ -529,6 +539,20 @@ function cleanDuplicateHeader() {
   if (!header) return;
   var toRemove = header.querySelectorAll('.dash-header-row2, .dash-header-row3, .dash-utility-bar');
   toRemove.forEach(function(el) { el.remove(); });
+  console.log('[AM-Additions] Header cleanup: removed', toRemove.length, 'duplicate rows');
+}
+
+// Watch for service worker injecting stale header rows
+if (typeof MutationObserver !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', function() {
+    var header = document.getElementById('dashHeader');
+    if (header) {
+      var observer = new MutationObserver(function() {
+        cleanDuplicateHeader();
+      });
+      observer.observe(header, { childList: true, subtree: true });
+    }
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -600,3 +624,5 @@ document.addEventListener('dashSessionLoaded', function() {
   // Run header cleanup again after 2s to catch delayed service worker injection
   setTimeout(cleanDuplicateHeader, 2000);
 }, true);
+
+console.log('[AM-Additions] Fully loaded — all patches and fixes applied');
