@@ -540,30 +540,34 @@ function clearAddForm() {
 function cleanDuplicateHeader() {
   var header = document.getElementById('dashHeader');
   if (!header) return;
-  // Log the header structure for debugging
-  var children = header.children;
-  console.log('[AM-Additions] Header has', children.length, 'children');
-  for (var i = 0; i < children.length; i++) {
-    console.log('[AM-Additions] Header child', i, ':', children[i].tagName, children[i].className || '(no class)', '"' + children[i].textContent.substring(0, 60).trim() + '"');
-  }
-  // Remove known duplicate row classes
-  var toRemove = header.querySelectorAll('.dash-header-row2, .dash-header-row3, .dash-utility-bar');
-  toRemove.forEach(function(el) { el.remove(); });
-  // Also remove any child divs after the first one that contain a heading
-  children = header.children;
-  if (children.length > 1) {
-    for (var i = 1; i < children.length; i++) {
-      var child = children[i];
-      if (child.className && (child.className.indexOf('logo') !== -1 || child.className.indexOf('nav') !== -1)) continue;
-      var heading = child.querySelector('h1, h2, h3, .dash-title, .page-title, .dash-header-title, .dash-page-title');
-      if (heading || (child.className && child.className.indexOf('row') !== -1)) {
-        console.log('[AM-Additions] Removing duplicate header child:', child.className || '(no class)');
-        child.remove();
-        i--;
+  // The correct structure is: #dashHeader > .dash-header > .dash-header-row1
+  // Remove anything that's NOT .dash-header-row1 inside .dash-header
+  var dashHeaderDiv = header.querySelector('.dash-header') || header;
+  var row1 = dashHeaderDiv.querySelector('.dash-header-row1');
+  if (row1) {
+    // Remove all siblings of row1 inside dashHeaderDiv
+    var siblings = dashHeaderDiv.children;
+    for (var i = siblings.length - 1; i >= 0; i--) {
+      if (siblings[i] !== row1) {
+        console.log('[AM-Additions] Removing duplicate header element:', siblings[i].tagName, siblings[i].className || '(no class)', '"' + siblings[i].textContent.substring(0, 40).trim() + '"');
+        siblings[i].remove();
       }
     }
   }
-  console.log('[AM-Additions] Header cleanup complete, children remaining:', header.children.length);
+  // Also remove any extra children of #dashHeader that aren't .dash-header
+  var headerChildren = header.children;
+  for (var i = headerChildren.length - 1; i >= 0; i--) {
+    if (headerChildren[i] !== dashHeaderDiv) {
+      console.log('[AM-Additions] Removing extra header child:', headerChildren[i].tagName, headerChildren[i].className || '(no class)');
+      headerChildren[i].remove();
+    }
+  }
+  // Remove duplicate #dashPageTitle elements
+  var allTitles = document.querySelectorAll('#dashPageTitle');
+  if (allTitles.length > 1) {
+    for (var i = 1; i < allTitles.length; i++) allTitles[i].remove();
+  }
+  console.log('[AM-Additions] Header cleanup complete');
 }
 
 // Watch for service worker injecting stale header rows
@@ -649,11 +653,20 @@ window.setMapMode = function(mode) {
 
 // ── Geocode helper using Nominatim (free OpenStreetMap geocoder) ──
 // No country restriction — customers may operate in US, Canada, Mexico, and US territories
+// Tries multiple address formats to disambiguate (e.g. "Houston" → "Houston, TX" if state is known)
 var geocodeCache = {};
-function geocodeAddress(address) {
+function geocodeAddress(address, hintState) {
   return new Promise(function(resolve) {
     if (!address || address.trim().length < 5) { resolve(null); return; }
     if (geocodeCache[address]) { resolve(geocodeCache[address]); return; }
+
+    // Check if address already contains a US state abbreviation or full name
+    var hasState = /\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC|PR)\b/i.test(address);
+    if (!hasState && hintState) {
+      // Append state hint to disambiguate (e.g. "Houston" → "Houston, TX")
+      address = address + ', ' + hintState;
+    }
+
     fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(address) + '&limit=1', {
       headers: { 'Accept': 'application/json' }
     })
@@ -711,8 +724,15 @@ function renderProjectsView() {
       projects.forEach(function(p) {
         var addr = p.location || p.address || p.city || '';
         if (!addr) return;
+        // Extract state hint from project data if available
+        var stateHint = p.state || '';
+        if (!stateHint && addr) {
+          // Try to extract state from the address itself
+          var stateMatch = addr.match(/\b(TX|CA|NY|FL|AZ|NM|OK|LA|AR|CO|WA|OR|NV|UT|ID|MT|WY|ND|SD|NE|KS|MN|IA|MO|WI|IL|IN|MI|OH|KY|TN|MS|AL|GA|SC|NC|VA|WV|PA|NJ|NY|CT|RI|MA|VT|NH|ME|MD|DE|DC|AK|HI|PR)\b/i);
+          if (stateMatch) stateHint = stateMatch[0].toUpperCase();
+        }
         pending++;
-        geocodeAddress(addr).then(function(coords) {
+        geocodeAddress(addr, stateHint).then(function(coords) {
           pending--;
           if (coords) {
             var marker = L.marker([coords.lat, coords.lng]);
@@ -853,20 +873,34 @@ function renderBreadcrumbTrail() {
         if (!Array.isArray(items)) items = [];
         console.log('[AM-Additions] ' + label + ' fetched:', items.length, 'items');
         items.forEach(function(item) {
+          // Use the user's GPS coordinates from the form submission
           var lat = parseFloat(item.latitude || item.lat || item.gps_lat || item.formLat);
           var lng = parseFloat(item.longitude || item.lng || item.gps_lng || item.lon || item.formLng);
           var date = item.transaction_date || item.purchase_date || item.created_at || item.submitted_at || item.date || '';
-          var addr = item[addrField] || item.location || item.vendor_address || item.address || '';
-          if (item.vendor_city) addr += (addr ? ', ' : '') + item.vendor_city;
-          if (item.vendor_state) addr += ', ' + item.vendor_state;
-          var assetLabel = item.asset_number || item.asset_name || '';
-
+          
+          // Build vendor address for popup (from receipt — may differ from user's GPS location)
+          var vendorAddr = '';
+          if (item.vendor) vendorAddr = item.vendor;
+          if (item.address) vendorAddr += (vendorAddr ? ' — ' : '') + item.address;
+          else if (item[addrField] && item[addrField] !== item.location) vendorAddr += (vendorAddr ? ' — ' : '') + item[addrField];
+          if (item.city) vendorAddr += (vendorAddr ? ', ' : '') + item.city;
+          else if (item.vendor_city) vendorAddr += (vendorAddr ? ', ' : '') + item.vendor_city;
+          if (item.state) vendorAddr += ', ' + item.state;
+          else if (item.vendor_state) vendorAddr += ', ' + item.vendor_state;
+          if (item.zip) vendorAddr += ' ' + item.zip;
+          else if (item.vendor_zip) vendorAddr += ' ' + item.vendor_zip;
+          
+          // Get asset identifier from the JOIN
+          var assetLabel = item.asset_number || item.asset_name || item.assetNumber || '';
+          
           if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-            allPoints.push({ lat: lat, lng: lng, type: pinType, label: label, date: date, addr: addr, asset: assetLabel, hasGPS: true });
-          } else if (addr && addr.trim().length >= 5) {
-            geocodeAddress(addr).then(function(coords) {
+            allPoints.push({ lat: lat, lng: lng, type: pinType, label: label, date: date, addr: vendorAddr, asset: assetLabel, hasGPS: true });
+          } else if (vendorAddr && vendorAddr.trim().length >= 5) {
+            // Extract state from the transaction data to help geocoding
+            var stateHint = item.state || item.vendor_state || '';
+            geocodeAddress(vendorAddr, stateHint).then(function(coords) {
               if (coords) {
-                allPoints.push({ lat: coords.lat, lng: coords.lng, type: pinType, label: label, date: date, addr: addr, asset: assetLabel, hasGPS: false });
+                allPoints.push({ lat: coords.lat, lng: coords.lng, type: pinType, label: label, date: date, addr: vendorAddr, asset: assetLabel, hasGPS: false });
                 checkAllDone();
               }
             });
@@ -882,42 +916,16 @@ function renderBreadcrumbTrail() {
       });
   }
 
-  // ── If "All Active Assets": show each asset at its last known form/base location ──
+  // ── If "All Active Assets": only show pins from actual activity data ──
   if (assetId === 'all') {
-    // Show all active assets at their form/base locations
-    allAssets.forEach(function(a) {
-      var s = (a.status || '').toLowerCase();
-      if (s === 'retired' || s === 'sold' || s === 'lost') return;
-      var lat = parseFloat(a.formLat || a.baseLat || a.lat);
-      var lng = parseFloat(a.formLng || a.baseLng || a.lng);
-      var addr = a.formLocation || a.baseLocation || a.location || '';
-      var date = a.formTimeDisplay || a.baseTimeDisplay || '';
-      var source = a.formSource || '';
-      var pinType = 'form';
-      if (source && source.toLowerCase().indexOf('fuel') !== -1) pinType = 'fuel';
-      else if (source && source.toLowerCase().indexOf('inspect') !== -1) pinType = 'inspection';
-      else if (source && source.toLowerCase().indexOf('work') !== -1) pinType = 'workorder';
-      else if (source && source.toLowerCase().indexOf('pm') !== -1 || (source && source.toLowerCase().indexOf('maint') !== -1)) pinType = 'pm';
-
-      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-        allPoints.push({ lat: lat, lng: lng, type: pinType, label: a.assetNumber || a.type || 'Asset', date: date, addr: addr, asset: a.assetNumber || '', hasGPS: true });
-      } else if (addr && addr.trim().length >= 5) {
-        geocodeAddress(addr).then(function(coords) {
-          if (coords) {
-            allPoints.push({ lat: coords.lat, lng: coords.lng, type: pinType, label: a.assetNumber || a.type || 'Asset', date: date, addr: addr, asset: a.assetNumber || '', hasGPS: false });
-            checkAllDone();
-          }
-        });
-      }
-    });
-
-    // Also fetch fuel transactions for all assets
+    // Don't create pins for each asset at their assigned location — only show actual activity
+    // Fetch fuel transactions for ALL assets (no asset_id filter)
     var fuelUrl = '/api/fuel-transactions?from=' + fromStr + '&to=' + toStr;
-    fetchActivity(fuelUrl, 'fuel', 'Fuel Transaction', 'location');
+    fetchActivity(fuelUrl, 'fuel', 'Fuel Purchase', 'address');
   } else {
     // ── Specific asset: fetch all activity for that asset ──
     var assetUrl = '/api/fuel-transactions?asset_id=' + encodeURIComponent(assetId) + '&from=' + fromStr + '&to=' + toStr;
-    fetchActivity(assetUrl, 'fuel', 'Fuel Transaction', 'location');
+    fetchActivity(assetUrl, 'fuel', 'Fuel Purchase', 'address');
 
     // Also show the asset's own form/base location as a pin
     var asset = allAssets.find(function(a) { return a.id === assetId; });
@@ -998,56 +1006,71 @@ document.addEventListener('dashSessionLoaded', function() {
 console.log('[AM-Additions] Fully loaded — all patches and fixes applied');
 
 // ═══════════════════════════════════════════════════════════════
-// WELCOME CARD FALLBACK — populate if dashboard-common.js doesn't
+// WELCOME CARD — populate from dashUser (same logic as admin dashboard)
 // ═══════════════════════════════════════════════════════════════
 function populateWelcomeCard() {
-  var nameEl = document.getElementById('welcome-name');
-  if (!nameEl) return;
-  // Check if already populated by dashboard-common.js
-  if (nameEl.textContent && nameEl.textContent !== 'Welcome back' && nameEl.textContent.indexOf('Welcome back') === -1) return;
-  if (nameEl.textContent && nameEl.textContent.trim().length > 15) return;
-
-  // Try to get user data from localStorage or global variables
-  var userData = null;
-  try { userData = JSON.parse(localStorage.getItem('driven_user') || '{}'); } catch(e) {}
-  if (!userData || !userData.name) {
-    try { userData = JSON.parse(localStorage.getItem('driven_session') || '{}'); } catch(e) {}
+  // Get user data from window.dashUser, event detail, or localStorage
+  var user = window.dashUser || window.drivenUser;
+  if (!user) {
+    try {
+      var s = localStorage.getItem('driven_user') || sessionStorage.getItem('driven_user');
+      if (s) user = JSON.parse(s);
+    } catch(e) {}
   }
-  if (!userData || !userData.name) {
-    try { userData = JSON.parse(localStorage.getItem('driven_auth') || '{}'); } catch(e) {}
+  if (!user) {
+    console.log('[AM-Additions] No user data found for welcome card');
+    return;
   }
 
-  // Try global variables that dashboard-common.js might set
-  if (!userData || !userData.name) {
-    if (typeof currentUser !== 'undefined' && currentUser) userData = currentUser;
-    else if (typeof sessionUser !== 'undefined' && sessionUser) userData = sessionUser;
-    else if (typeof userInfo !== 'undefined' && userInfo) userData = userInfo;
-  }
+  var firstName = user.first_name || user.email || '';
+  var orgName = user.org_name || localStorage.getItem('driven_org_name') || '';
 
-  if (userData && userData.name) {
-    nameEl.textContent = 'Welcome back, ' + userData.name;
-    var roleEl = document.getElementById('welcome-role');
-    if (roleEl && userData.role) roleEl.textContent = userData.role;
-    var emailEl = document.getElementById('welcome-email');
-    if (emailEl && userData.email) emailEl.textContent = userData.email;
-    console.log('[AM-Additions] Welcome card populated from fallback:', userData.name);
-  } else {
-    // Try fetching from auth API
-    fetch('/auth/get-session')
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data && data.user) {
-          var u = data.user;
-          nameEl.textContent = 'Welcome back, ' + (u.name || u.displayName || u.email || 'User');
-          var roleEl = document.getElementById('welcome-role');
-          if (roleEl && u.role) roleEl.textContent = u.role;
-          var emailEl = document.getElementById('welcome-email');
-          if (emailEl && u.email) emailEl.textContent = u.email;
-          console.log('[AM-Additions] Welcome card populated from API:', u.name || u.email);
+  var welcomeEl = document.getElementById('welcome-name');
+  if (welcomeEl) {
+    welcomeEl.textContent = firstName ? ('Welcome back, ' + firstName + (orgName ? ' - ' + orgName : '')) : 'Welcome back';
+  }
+  var elRole = document.getElementById('welcome-role');
+  if (elRole) elRole.textContent = user.role || user.role_id || '';
+  var elMail = document.getElementById('welcome-email');
+  if (elMail) elMail.textContent = user.email || '';
+
+  // Initialize UOM dropdown
+  var uomSelect = document.getElementById('welcomeUomSelect');
+  if (uomSelect && window.DRIVEN_UNITS && DRIVEN_UNITS.getUserUnitPreference) {
+    DRIVEN_UNITS.getUserUnitPreference().then(function(info) {
+      if (!info) return;
+      uomSelect.value = info.user_preference || 'org_default';
+      var hint = document.getElementById('welcomeUomHint');
+      if (hint && info.org_default && info.user_preference === 'org_default') {
+        hint.textContent = 'Org default: ' + (info.org_default === 'metric' ? 'Metric' : 'Imperial');
+      }
+    });
+    uomSelect.onchange = function() {
+      if (!window.DRIVEN_UNITS || !DRIVEN_UNITS.setUserUnitPreference) return;
+      DRIVEN_UNITS.setUserUnitPreference(uomSelect.value).then(function(result) {
+        if (!result) { alert('Failed to update unit preference.'); return; }
+        var hint = document.getElementById('welcomeUomHint');
+        if (hint) {
+          if (uomSelect.value === 'org_default' && result.unit_system) {
+            hint.textContent = 'Org default: ' + (result.unit_system === 'metric' ? 'Metric' : 'Imperial');
+          } else { hint.textContent = ''; }
         }
-      })
-      .catch(function(e) {
-        console.log('[AM-Additions] Could not populate welcome card:', e.message);
+        if (window.DRIVEN_APPLY_UNITS) DRIVEN_APPLY_UNITS.refresh();
+        try { localStorage.setItem('driv-en-unit-system-changed', Date.now().toString()); localStorage.setItem('driv-en-unit-system', result.unit_system); } catch(e) {}
       });
+    };
   }
+
+  // Initialize language dropdown
+  var langSelect = document.getElementById('adminLangSelect');
+  if (langSelect) {
+    var savedLang = localStorage.getItem('driven-lang') || 'en';
+    langSelect.value = savedLang;
+    langSelect.onchange = function() {
+      localStorage.setItem('driven-lang', langSelect.value);
+      if (window.location.reload) window.location.reload();
+    };
+  }
+
+  console.log('[AM-Additions] Welcome card populated:', firstName, orgName);
 }
