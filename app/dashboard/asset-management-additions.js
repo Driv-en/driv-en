@@ -4,6 +4,55 @@
 // ═══════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════
+// STREET VIEW — opens modal with Google Street View iframe + adjust map
+// ═══════════════════════════════════════════════════════════════
+var _svAdjustMap = null;
+var _svAdjustMarker = null;
+
+function openStreetView(lat, lng, label) {
+  var modal = document.getElementById('amStreetViewModal');
+  if (!modal) { console.warn('[AM] Street View modal not found in DOM'); return; }
+
+  var titleEl = document.getElementById('streetViewAssetTitle');
+  var coordEl = document.getElementById('streetViewCoordDisplay');
+  var frame = document.getElementById('streetViewFrame');
+
+  if (titleEl) titleEl.textContent = label || 'Street View';
+  if (coordEl) coordEl.textContent = lat.toFixed(6) + ', ' + lng.toFixed(6);
+
+  // Load Street View in iframe (no API key needed — uses Google Maps embed)
+  if (frame) {
+    frame.src = 'https://maps.google.com/maps?q=&layer=c&cbll=' + lat + ',' + lng + '&cbp=0,0,0,0,0&output=svembed';
+  }
+
+  // Open modal
+  modal.classList.add('active', 'show');
+  modal.style.display = 'flex';
+
+  // Set up adjust map with draggable pin
+  var adjustDiv = document.getElementById('streetViewAdjustMap');
+  if (adjustDiv) {
+    if (_svAdjustMap) { try { _svAdjustMap.remove(); } catch(e) {} _svAdjustMap = null; }
+    setTimeout(function() {
+      _svAdjustMap = L.map('streetViewAdjustMap').setView([lat, lng], 17);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap', maxZoom: 19
+      }).addTo(_svAdjustMap);
+
+      _svAdjustMarker = L.marker([lat, lng], { draggable: true }).addTo(_svAdjustMap);
+      _svAdjustMarker.on('dragend', function(e) {
+        var pos = e.target.getLatLng();
+        if (coordEl) coordEl.textContent = pos.lat.toFixed(6) + ', ' + pos.lng.toFixed(6);
+        if (frame) {
+          frame.src = 'https://maps.google.com/maps?q=&layer=c&cbll=' + pos.lat + ',' + pos.lng + '&cbp=0,0,0,0,0&output=svembed';
+        }
+      });
+      setTimeout(function() { _svAdjustMap.invalidateSize(); }, 200);
+    }, 150);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // COLUMN DRAG-AND-DROP REORDER (resize already exists)
 // ═══════════════════════════════════════════════════════════════
 var amColOrder = [];
@@ -494,6 +543,7 @@ function createFallbackMap(container) {
       var popup = '<div class="am-map-popup"><h4>' + escapeHtml(a.assetNumber || a.type || 'Asset') + '</h4>';
       if (a.status) popup += '<p>' + escapeHtml(a.status) + '</p>';
       if (a.location) popup += '<p class="popup-meta">' + escapeHtml(a.location) + '</p>';
+      popup += '<a href="#" onclick="openStreetView(' + lat + ',' + lng + ',\'' + escapeHtml(a.assetNumber || a.type || 'Asset').replace(/'/g, "\\'") + '\'); return false;" style="display:block;margin-top:6px;color:#16a34a;font-size:13px;text-decoration:none;font-weight:600;">Street View &rarr;</a>';
       popup += '</div>';
       marker.bindPopup(popup);
       if (amClusterGroup) amClusterGroup.addLayer(marker);
@@ -785,6 +835,7 @@ function renderFormsView() {
           popupHtml += '<p class="popup-meta">User location: ' + lat.toFixed(4) + ', ' + lng.toFixed(4) + '</p>';
           if (vendorAddr) popupHtml += '<p>Vendor: ' + escapeHtml(vendorAddr) + '</p>';
           if (date) popupHtml += '<p class="popup-meta">' + escapeHtml(formatDateTime(date)) + '</p>';
+          popupHtml += '<a href="#" onclick="openStreetView(' + lat + ',' + lng + ',\'' + escapeHtml(assetLabel || 'Form Entry').replace(/'/g, "\\'") + '\'); return false;" style="display:block;margin-top:6px;color:#16a34a;font-size:13px;text-decoration:none;font-weight:600;">Street View &rarr;</a>';
           popupHtml += '</div>';
           marker.bindPopup(popupHtml);
           amClusterGroup.addLayer(marker);
@@ -844,7 +895,7 @@ function renderProjectsView() {
           pending--;
           if (coords) {
             var marker = L.marker([coords.lat, coords.lng]);
-            marker.bindPopup('<div class="am-map-popup"><h4>' + escapeHtml(p.name || 'Project') + '</h4><p class="popup-meta">' + escapeHtml(p.code || '') + '</p><p>' + escapeHtml(addr) + '</p></div>');
+            marker.bindPopup('<div class="am-map-popup"><h4>' + escapeHtml(p.name || 'Project') + '</h4><p class="popup-meta">' + escapeHtml(p.code || '') + '</p><p>' + escapeHtml(addr) + '</p><a href="#" onclick="openStreetView(' + coords.lat + ',' + coords.lng + ',\'' + escapeHtml(p.name || 'Project').replace(/'/g, "\\'") + '\'); return false;" style="display:block;margin-top:6px;color:#16a34a;font-size:13px;text-decoration:none;font-weight:600;">Street View &rarr;</a></div>');
             amClusterGroup.addLayer(marker);
             bounds.push([coords.lat, coords.lng]);
           }
@@ -1149,6 +1200,7 @@ function drawActivityPins(points) {
     if (p.fuelDate && p.fuelDate !== p.date) popupHtml += '<p class="popup-meta">Purchase date: ' + escapeHtml(formatDateTime(p.fuelDate)) + '</p>';
     if (!p.hasGPS) popupHtml += '<p class="popup-meta">(geocoded from address)</p>';
     if (p.date) popupHtml += '<p class="popup-meta">' + escapeHtml(formatDateTime(p.date)) + '</p>';
+    popupHtml += '<a href="#" onclick="openStreetView(' + p.lat + ',' + p.lng + ',\'' + escapeHtml((p.asset || p.label || 'Location').replace(/'/g, "\\'")) + '\'); return false;" style="display:block;margin-top:6px;color:#16a34a;font-size:13px;text-decoration:none;font-weight:600;">Street View &rarr;</a>';
     popupHtml += '</div>';
     marker.bindPopup(popupHtml);
     window._bcMarkerGroup.addLayer(marker);
