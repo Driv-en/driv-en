@@ -344,13 +344,87 @@ renderTableHead = function() {
   attachAmDragDrop();
 };
 
-// Patch the dashSessionLoaded handler to call loadAmColOrder + setupInfoModals
-// This needs to be called after the original init
+// ═══════════════════════════════════════════════════════════════
+// KPI FIX — robust updater that works regardless of element IDs
+// Scans allAssets and updates any element whose ID contains "Kpi" + status name
+// ═══════════════════════════════════════════════════════════════
+function updateKpiFix() {
+  if (!allAssets || allAssets.length === 0) return;
+  var counts = { total: allAssets.length };
+  allAssets.forEach(function(a) {
+    var s = (a.status || 'Unknown').toLowerCase();
+    counts[s] = (counts[s] || 0) + 1;
+  });
+  // Try every possible KPI element ID pattern
+  var patterns = [
+    function(s) { return 'amKpi' + s.charAt(0).toUpperCase() + s.slice(1); },
+    function(s) { return 'kpi' + s.charAt(0).toUpperCase() + s.slice(1); },
+    function(s) { return 'am-kpi-' + s; },
+    function(s) { return 'kpi-' + s; }
+  ];
+  Object.keys(counts).forEach(function(key) {
+    for (var p = 0; p < patterns.length; p++) {
+      var el = document.getElementById(patterns[p](key));
+      if (el) { el.textContent = counts[key]; break; }
+    }
+  });
+}
+
+// Patch renderAssetTable to also update KPIs
+var _originalRenderAssetTable = renderAssetTable;
+renderAssetTable = function() {
+  _originalRenderAssetTable.apply(this, arguments);
+  updateKpiFix();
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MAP FIX — ensure Leaflet loads and map initializes
+// ═══════════════════════════════════════════════════════════════
+function ensureLeaflet(callback) {
+  if (typeof L !== 'undefined') { callback(); return; }
+  // Try loading from unpkg
+  var script = document.createElement('script');
+  script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  script.onload = callback;
+  script.onerror = function() {
+    // Fallback: try cdnjs
+    var alt = document.createElement('script');
+    alt.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
+    alt.onload = callback;
+    alt.onerror = function() {
+      console.error('Could not load Leaflet from any CDN');
+    };
+    document.head.appendChild(alt);
+  };
+  document.head.appendChild(script);
+}
+
+// Patch switchTab to ensure Leaflet + map init for location tab
+var _originalSwitchTab = switchTab;
+switchTab = function(tab) {
+  _originalSwitchTab.apply(this, arguments);
+  if (tab === 'location' || tab === 'overview') {
+    ensureLeaflet(function() {
+      setTimeout(function() {
+        if (typeof initAssetMap === 'function') {
+          if (!amMapInstance) {
+            initAssetMap();
+          } else {
+            amMapInstance.invalidateSize();
+          }
+        }
+      }, 200);
+    });
+  }
+};
+
+// Patch the dashSessionLoaded handler to call loadAmColOrder + setupInfoModals + KPI fix
 document.addEventListener('dashSessionLoaded', function() {
   setTimeout(function() {
     loadAmColOrder();
     setupInfoModals();
     renderTableHead();
     renderAssetTable();
+    updateKpiFix();
   }, 500);
 }, true);
