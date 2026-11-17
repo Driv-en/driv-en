@@ -609,18 +609,21 @@ window.setMapMode = function(mode) {
       var bcYear = document.getElementById('amBreadcrumbYear');
       if (bcSelect) {
         bcSelect.style.display = 'inline-block';
-        bcSelect.innerHTML = '<option value="">— Select Asset —</option>';
+        bcSelect.innerHTML = '<option value="all">All Active Assets</option>';
         allAssets.forEach(function(a) {
+          // Only show active assets (not retired, sold, or lost)
+          var s = (a.status || '').toLowerCase();
+          if (s === 'retired' || s === 'sold' || s === 'lost') return;
           var opt = document.createElement('option');
           opt.value = a.id;
           opt.textContent = a.assetNumber || a.type || 'Asset ' + a.id;
           bcSelect.appendChild(opt);
         });
+        bcSelect.value = 'all'; // default to All Active Assets
         bcSelect.onchange = function() { renderBreadcrumbTrail(); };
       }
       if (bcYear) {
         bcYear.style.display = 'inline-block';
-        // Populate years dynamically from current year back to 2020
         var currentYear = new Date().getFullYear();
         bcYear.innerHTML = '';
         for (var y = currentYear; y >= 2020; y--) {
@@ -639,7 +642,7 @@ window.setMapMode = function(mode) {
         bcRange.onchange = function() { renderBreadcrumbTrail(); };
       }
       updateDaysFilterVisibility();
-      if (bcSelect.value) renderBreadcrumbTrail();
+      renderBreadcrumbTrail(); // auto-load with All Active Assets default
     }
   };
   console.log('[AM-Additions] setMapMode override installed');
@@ -792,37 +795,63 @@ function renderBreadcrumbTrail() {
   var bcSelect = document.getElementById('amBreadcrumbAssetSelect');
   var bcRange = document.getElementById('amBreadcrumbDateRange');
   var bcYear = document.getElementById('amBreadcrumbYear');
-  var assetId = bcSelect ? bcSelect.value : '';
-  if (!assetId) { amMapInstance.setView([39.5, -98.35], 4); return; }
+  var assetId = bcSelect ? bcSelect.value : 'all';
 
   addMapLegend();
 
-  // Build date filter: year always, days only if current year
+  // ── Calculate date range from year + days filters ──
   var selectedYear = bcYear ? parseInt(bcYear.value) : new Date().getFullYear();
   var currentYear = new Date().getFullYear();
-  var dateFilter = '&year=' + selectedYear;
-  if (selectedYear === currentYear && bcRange) {
-    if (bcRange.value === 'today') dateFilter += '&days=1';
-    else if (bcRange.value === '7days') dateFilter += '&days=7';
-    else if (bcRange.value === '30days') dateFilter += '&days=30';
-    else if (bcRange.value === '90days') dateFilter += '&days=90';
-    // 'ytd' = Year to Date — just pass year, no days filter
+  var now = new Date();
+  var fromStr, toStr;
+
+  if (selectedYear === currentYear && bcRange && bcRange.value !== 'ytd') {
+    // Current year with days filter
+    var days = 0;
+    if (bcRange.value === 'today') days = 0;
+    else if (bcRange.value === '7days') days = 7;
+    else if (bcRange.value === '30days') days = 30;
+    else if (bcRange.value === '90days') days = 90;
+    var fromDate = new Date(now);
+    fromDate.setDate(fromDate.getDate() - days);
+    fromStr = fromDate.toISOString().split('T')[0];
+    toStr = now.toISOString().split('T')[0];
+  } else if (selectedYear === currentYear) {
+    // Year to Date
+    fromStr = selectedYear + '-01-01';
+    toStr = now.toISOString().split('T')[0];
+  } else {
+    // Previous full year
+    fromStr = selectedYear + '-01-01';
+    toStr = selectedYear + '-12-31';
   }
 
-  // Collect ALL activity points from multiple sources
+  console.log('[AM-Additions] Breadcrumb trail: asset=' + assetId, 'from=' + fromStr, 'to=' + toStr);
+
   var allPoints = [];
   var sourcesFetched = 0;
   var sourcesTotal = 0;
 
-  // Helper: try an endpoint, extract items, add as pin type
+  function checkAllDone() {
+    if (sourcesFetched >= sourcesTotal) {
+      allPoints.sort(function(a, b) {
+        return (a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : 0;
+      });
+      drawActivityPins(allPoints);
+    }
+  }
+
   function fetchActivity(url, pinType, label, addrField) {
     sourcesTotal++;
     fetch(url)
-      .then(function(r) { return r.json(); })
+      .then(function(r) {
+        if (!r.ok) { console.log('[AM-Additions] ' + label + ' API returned ' + r.status); throw new Error(r.status); }
+        return r.json();
+      })
       .then(function(data) {
-        var items = data.records || data.results || data.data || data;
+        var items = data.transactions || data.purchases || data.records || data.results || data || [];
         if (!Array.isArray(items)) items = [];
-        console.log('[AM-Additions] ' + label + ' fetched:', items.length);
+        console.log('[AM-Additions] ' + label + ' fetched:', items.length, 'items');
         items.forEach(function(item) {
           var lat = parseFloat(item.latitude || item.lat || item.gps_lat || item.formLat);
           var lng = parseFloat(item.longitude || item.lng || item.gps_lng || item.lon || item.formLng);
@@ -830,14 +859,14 @@ function renderBreadcrumbTrail() {
           var addr = item[addrField] || item.location || item.vendor_address || item.address || '';
           if (item.vendor_city) addr += (addr ? ', ' : '') + item.vendor_city;
           if (item.vendor_state) addr += ', ' + item.vendor_state;
+          var assetLabel = item.asset_number || item.asset_name || '';
 
           if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-            allPoints.push({ lat: lat, lng: lng, type: pinType, label: label, date: date, addr: addr, hasGPS: true });
+            allPoints.push({ lat: lat, lng: lng, type: pinType, label: label, date: date, addr: addr, asset: assetLabel, hasGPS: true });
           } else if (addr && addr.trim().length >= 5) {
-            // Needs geocoding
             geocodeAddress(addr).then(function(coords) {
               if (coords) {
-                allPoints.push({ lat: coords.lat, lng: coords.lng, type: pinType, label: label, date: date, addr: addr, hasGPS: false });
+                allPoints.push({ lat: coords.lat, lng: coords.lng, type: pinType, label: label, date: date, addr: addr, asset: assetLabel, hasGPS: false });
                 checkAllDone();
               }
             });
@@ -847,29 +876,73 @@ function renderBreadcrumbTrail() {
         checkAllDone();
       })
       .catch(function(e) {
-        console.log('[AM-Additions] ' + label + ' endpoint not available:', url);
+        console.log('[AM-Additions] ' + label + ' endpoint not available');
         sourcesFetched++;
         checkAllDone();
       });
   }
 
-  function checkAllDone() {
-    if (sourcesFetched >= sourcesTotal) {
-      // Sort chronologically
-      allPoints.sort(function(a, b) {
-        return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
-      });
-      drawActivityPins(allPoints);
+  // ── If "All Active Assets": show each asset at its last known form/base location ──
+  if (assetId === 'all') {
+    // Show all active assets at their form/base locations
+    allAssets.forEach(function(a) {
+      var s = (a.status || '').toLowerCase();
+      if (s === 'retired' || s === 'sold' || s === 'lost') return;
+      var lat = parseFloat(a.formLat || a.baseLat || a.lat);
+      var lng = parseFloat(a.formLng || a.baseLng || a.lng);
+      var addr = a.formLocation || a.baseLocation || a.location || '';
+      var date = a.formTimeDisplay || a.baseTimeDisplay || '';
+      var source = a.formSource || '';
+      var pinType = 'form';
+      if (source && source.toLowerCase().indexOf('fuel') !== -1) pinType = 'fuel';
+      else if (source && source.toLowerCase().indexOf('inspect') !== -1) pinType = 'inspection';
+      else if (source && source.toLowerCase().indexOf('work') !== -1) pinType = 'workorder';
+      else if (source && source.toLowerCase().indexOf('pm') !== -1 || (source && source.toLowerCase().indexOf('maint') !== -1)) pinType = 'pm';
+
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+        allPoints.push({ lat: lat, lng: lng, type: pinType, label: a.assetNumber || a.type || 'Asset', date: date, addr: addr, asset: a.assetNumber || '', hasGPS: true });
+      } else if (addr && addr.trim().length >= 5) {
+        geocodeAddress(addr).then(function(coords) {
+          if (coords) {
+            allPoints.push({ lat: coords.lat, lng: coords.lng, type: pinType, label: a.assetNumber || a.type || 'Asset', date: date, addr: addr, asset: a.assetNumber || '', hasGPS: false });
+            checkAllDone();
+          }
+        });
+      }
+    });
+
+    // Also fetch fuel transactions for all assets
+    var fuelUrl = '/api/fuel-transactions?from=' + fromStr + '&to=' + toStr;
+    fetchActivity(fuelUrl, 'fuel', 'Fuel Transaction', 'location');
+  } else {
+    // ── Specific asset: fetch all activity for that asset ──
+    var assetUrl = '/api/fuel-transactions?asset_id=' + encodeURIComponent(assetId) + '&from=' + fromStr + '&to=' + toStr;
+    fetchActivity(assetUrl, 'fuel', 'Fuel Transaction', 'location');
+
+    // Also show the asset's own form/base location as a pin
+    var asset = allAssets.find(function(a) { return a.id === assetId; });
+    if (asset) {
+      var lat = parseFloat(asset.formLat || asset.baseLat || asset.lat);
+      var lng = parseFloat(asset.formLng || asset.baseLng || asset.lng);
+      var addr = asset.formLocation || asset.baseLocation || asset.location || '';
+      var date = asset.formTimeDisplay || asset.baseTimeDisplay || '';
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+        allPoints.push({ lat: lat, lng: lng, type: 'form', label: 'Last Form Entry', date: date, addr: addr, asset: asset.assetNumber || '', hasGPS: true });
+      } else if (addr && addr.trim().length >= 5) {
+        geocodeAddress(addr).then(function(coords) {
+          if (coords) {
+            allPoints.push({ lat: coords.lat, lng: coords.lng, type: 'form', label: 'Last Form Entry', date: date, addr: addr, asset: asset.assetNumber || '', hasGPS: false });
+            checkAllDone();
+          }
+        });
+      }
     }
   }
 
-  // Fetch from all known endpoints (gracefully skips any that don't exist)
-  fetchActivity('/api/fuel-purchases?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'fuel', 'Fuel Purchase', 'vendor_address');
-  fetchActivity('/api/fuel-transactions?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'fuel', 'Fuel Transaction', 'location');
-  fetchActivity('/api/forms?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'form', 'Form Entry', 'location');
-  fetchActivity('/api/inspections?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'inspection', 'Inspection', 'location');
-  fetchActivity('/api/work-orders?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'workorder', 'Work Order', 'location');
-  fetchActivity('/api/maintenance?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'pm', 'PM', 'location');
+  // If no async sources, draw immediately
+  if (sourcesTotal === 0) {
+    setTimeout(function() { drawActivityPins(allPoints); }, 500);
+  }
 }
 
 function drawActivityPins(points) {
@@ -882,6 +955,7 @@ function drawActivityPins(points) {
     var icon = createPinIcon(PIN_COLORS[p.type] || '#666');
     var marker = L.marker([p.lat, p.lng], { icon: icon });
     var popupHtml = '<div class="am-map-popup"><h4>' + escapeHtml(p.label) + '</h4>';
+    if (p.asset) popupHtml += '<p><strong>' + escapeHtml(p.asset) + '</strong></p>';
     if (p.addr) popupHtml += '<p>' + escapeHtml(p.addr) + '</p>';
     if (!p.hasGPS) popupHtml += '<p class="popup-meta">(geocoded from address)</p>';
     if (p.date) popupHtml += '<p class="popup-meta">' + escapeHtml(p.date) + '</p>';
