@@ -415,30 +415,84 @@ switchTab = function(tab) {
           console.error('Map container #amAssetMap not found');
           return;
         }
+        // Ensure container has height
+        if (container.offsetHeight === 0) {
+          container.style.height = '500px';
+        }
         if (typeof initAssetMap === 'function') {
           if (!amMapInstance) {
             console.log('Initializing asset map...');
             initAssetMap();
-            // Force size recalculation after init
             setTimeout(function() {
               if (amMapInstance) {
                 amMapInstance.invalidateSize();
                 console.log('Map initialized and sized');
+                // Try to render pins
+                if (typeof renderAssetMapPins === 'function') {
+                  renderAssetMapPins();
+                }
               } else {
-                console.error('initAssetMap did not create amMapInstance');
+                console.warn('initAssetMap did not create amMapInstance — creating fallback map');
+                createFallbackMap(container);
               }
             }, 300);
           } else {
             amMapInstance.invalidateSize();
-            console.log('Map resized');
+            if (typeof renderAssetMapPins === 'function') renderAssetMapPins();
+            console.log('Map resized and pins refreshed');
           }
         } else {
-          console.error('initAssetMap function not found');
+          console.warn('initAssetMap not found — creating fallback map');
+          createFallbackMap(container);
         }
       }, 300);
     });
   }
 };
+
+// Fallback map: creates a basic Leaflet map with markers from allAssets
+function createFallbackMap(container) {
+  if (typeof L === 'undefined') {
+    console.error('Leaflet not loaded — cannot create map');
+    return;
+  }
+  if (amMapInstance) {
+    amMapInstance.remove();
+    amMapInstance = null;
+  }
+  amMapInstance = L.map(container).setView([39.5, -98.35], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 19
+  }).addTo(amMapInstance);
+  if (typeof L.markerClusterGroup === 'function') {
+    amClusterGroup = L.markerClusterGroup();
+    amMapInstance.addLayer(amClusterGroup);
+  } else {
+    amClusterGroup = L.layerGroup();
+    amMapInstance.addLayer(amClusterGroup);
+  }
+  // Add markers for assets with GPS
+  var bounds = [];
+  allAssets.forEach(function(a) {
+    var lat = parseFloat(a.latitude || a.gpsLat || a.lat);
+    var lng = parseFloat(a.longitude || a.gpsLng || a.lng || a.lon);
+    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+      var marker = L.marker([lat, lng]);
+      var popup = '<div class="am-map-popup"><h4>' + escapeHtml(a.assetNumber || a.type || 'Asset') + '</h4>';
+      if (a.status) popup += '<p>' + escapeHtml(a.status) + '</p>';
+      if (a.location) popup += '<p class="popup-meta">' + escapeHtml(a.location) + '</p>';
+      popup += '</div>';
+      marker.bindPopup(popup);
+      if (amClusterGroup) amClusterGroup.addLayer(marker);
+      bounds.push([lat, lng]);
+    }
+  });
+  if (bounds.length > 0) {
+    amMapInstance.fitBounds(bounds, { padding: [50, 50] });
+  }
+  setTimeout(function() { amMapInstance.invalidateSize(); }, 200);
+  console.log('Fallback map created with', bounds.length, 'markers');
+}
 
 // Patch the dashSessionLoaded handler to call loadAmColOrder + setupInfoModals + KPI fix
 document.addEventListener('dashSessionLoaded', function() {
