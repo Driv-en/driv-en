@@ -164,8 +164,8 @@ async function decodeVin() {
     if (v.transmissionStyle) document.getElementById('amTransType').value = v.transmissionStyle;
     if (v.driveType) document.getElementById('amDriveConfig').value = v.driveType;
     if (v.fuelTankCapacity) document.getElementById('amFuelTankCap').value = v.fuelTankCapacity;
-    // Always set serial number to the VIN itself
-    document.getElementById('amSerialNumber').value = vin;
+    // Always set serial number to the VIN itself (uppercase)
+    document.getElementById('amSerialNumber').value = vin.toUpperCase();
     var result = document.getElementById('vinDecodeResult');
     if (result) {
       result.style.display = 'block';
@@ -494,13 +494,109 @@ function createFallbackMap(container) {
   console.log('Fallback map created with', bounds.length, 'markers');
 }
 
-// Patch the dashSessionLoaded handler to call loadAmColOrder + setupInfoModals + KPI fix
+// ═══════════════════════════════════════════════════════════════
+// CLEAR ADD FORM
+// ═══════════════════════════════════════════════════════════════
+function clearAddForm() {
+  var fields = ['amAssetNumber','amAssetType','amIsAttachment','amAllowedCategory','amVinInput',
+    'amSerialNumber','amMakeOem','amModel','amYear','amFuelType','amEngineMakeModel',
+    'amTransType','amDriveConfig','amFuelTankCap','amMeter','amStatus','amProject',
+    'amLocation','amDivision','amAssignedOperator','amDotRegulated'];
+  fields.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    else el.value = '';
+  });
+  var result = document.getElementById('vinDecodeResult');
+  if (result) result.style.display = 'none';
+  var recalls = document.getElementById('vinRecallsResult');
+  if (recalls) recalls.style.display = 'none';
+  decodedVinData = null;
+  decodedRecalls = [];
+  showAddMessage('Form cleared.', 'success');
+  setTimeout(function() {
+    var m = document.getElementById('amAddMessage');
+    if (m) m.style.display = 'none';
+  }, 2000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HEADER CLEANUP — remove duplicate header rows (row2/row3/utility)
+// ═══════════════════════════════════════════════════════════════
+function cleanDuplicateHeader() {
+  var header = document.getElementById('dashHeader');
+  if (!header) return;
+  var toRemove = header.querySelectorAll('.dash-header-row2, .dash-header-row3, .dash-utility-bar');
+  toRemove.forEach(function(el) { el.remove(); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SET MAP MODE FALLBACK — if setMapMode not defined in main JS
+// ═══════════════════════════════════════════════════════════════
+if (typeof setMapMode !== 'function') {
+  window.setMapMode = function(mode) {
+    mapMode = mode;
+    var formsBtn = document.getElementById('amMapModeForms');
+    var projBtn = document.getElementById('amMapModeProjects');
+    var bcBtn = document.getElementById('amMapModeBreadcrumb');
+    var bcSelect = document.getElementById('amBreadcrumbAssetSelect');
+    var bcRange = document.getElementById('amBreadcrumbDateRange');
+    if (formsBtn) formsBtn.classList.remove('active');
+    if (projBtn) projBtn.classList.remove('active');
+    if (bcBtn) bcBtn.classList.remove('active');
+    if (bcSelect) bcSelect.style.display = 'none';
+    if (bcRange) bcRange.style.display = 'none';
+    if (mode === 'forms' && formsBtn) formsBtn.classList.add('active');
+    if (mode === 'projects' && projBtn) { projBtn.classList.add('active'); }
+    if (mode === 'breadcrumb') {
+      if (bcBtn) bcBtn.classList.add('active');
+      if (bcSelect) bcSelect.style.display = 'inline-block';
+      if (bcRange) bcRange.style.display = 'inline-block';
+      // Populate asset dropdown
+      if (bcSelect && allAssets) {
+        bcSelect.innerHTML = '<option value="">— Select Asset —</option>';
+        allAssets.forEach(function(a) {
+          var opt = document.createElement('option');
+          opt.value = a.id;
+          opt.textContent = a.assetNumber || a.type || 'Asset ' + a.id;
+          bcSelect.appendChild(opt);
+        });
+      }
+    }
+    // Re-render pins
+    if (amMapInstance && typeof renderAssetMapPins === 'function') {
+      renderAssetMapPins();
+    } else if (amMapInstance) {
+      // Fallback: re-add markers
+      if (amClusterGroup) amClusterGroup.clearLayers();
+      var bounds = [];
+      allAssets.forEach(function(a) {
+        var lat = parseFloat(a.latitude || a.gpsLat || a.lat || a.Latitude || a.gps_latitude || a.current_latitude || a.lastKnownLat);
+        var lng = parseFloat(a.longitude || a.gpsLng || a.lng || a.lon || a.Longitude || a.gps_longitude || a.current_longitude || a.lastKnownLng);
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+          var marker = L.marker([lat, lng]);
+          marker.bindPopup('<div class="am-map-popup"><h4>' + escapeHtml(a.assetNumber || a.type || 'Asset') + '</h4><p>' + escapeHtml(a.status || '') + '</p></div>');
+          amClusterGroup.addLayer(marker);
+          bounds.push([lat, lng]);
+        }
+      });
+      if (bounds.length > 0) amMapInstance.fitBounds(bounds, { padding: [50, 50] });
+    }
+  };
+  console.log('setMapMode fallback defined');
+}
+
+// Patch the dashSessionLoaded handler to call loadAmColOrder + setupInfoModals + KPI fix + header cleanup
 document.addEventListener('dashSessionLoaded', function() {
   setTimeout(function() {
+    cleanDuplicateHeader();
     loadAmColOrder();
     setupInfoModals();
     renderTableHead();
     renderAssetTable();
     updateKpiFix();
   }, 500);
+  // Run header cleanup again after 2s to catch delayed service worker injection
+  setTimeout(cleanDuplicateHeader, 2000);
 }, true);
