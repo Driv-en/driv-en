@@ -129,8 +129,10 @@
 
 /* ===== MESSAGES ===== */
 .am-message { margin-bottom:16px; padding:12px 16px; border-radius:6px; font-size:14px; display:none; }
-.am-message.error { background:rgba(239,68,68,0.1); color:#fca5a5; border:1px solid rgba(239,68,68,0.3); }
-.am-message.success { background:rgba(34,197,94,0.1); color:#86efac; border:1px solid rgba(34,197,94,0.3); }
+.am-message.error { background:rgba(239,68,68,0.15); color:#dc2626; border:1px solid rgba(239,68,68,0.4); }
+.am-message.success { background:rgba(34,197,94,0.15); color:#16a34a; border:1px solid rgba(34,197,94,0.4); }
+[data-theme="dark"] .am-message.error { background:rgba(239,68,68,0.1); color:#fca5a5; border:1px solid rgba(239,68,68,0.3); }
+[data-theme="dark"] .am-message.success { background:rgba(34,197,94,0.1); color:#86efac; border:1px solid rgba(34,197,94,0.3); }
 
 /* ===== EMPTY STATE ===== */
 .am-empty { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:15px; }
@@ -1303,7 +1305,7 @@ async function addAsset() {
     if (isNaN(meterVal) || meterVal < 0) { showMessage('Meter Reading must be a valid number (0 or higher).', 'error'); return; }
   }
 
-  // Build API payload (Airtable field names for /api/Equipment)
+  // Build API payload — use fieldMap keys from [[path]].js
   var payload = {
     'Equipment ID': assetNumber,
     'Equipment Name': assetType,
@@ -1312,7 +1314,7 @@ async function addAsset() {
     'Project': project,
     'Location': location,
   };
-  if (meterVal !== null) payload['Meter Reading'] = meterVal;
+  if (meterVal !== null) payload['current_meter'] = meterVal;
 
   // VIN-decoded and manually entered spec fields
   var serialNum = document.getElementById('amSerialNumber').value.trim();
@@ -1327,15 +1329,16 @@ async function addAsset() {
   var dotRegulated = document.getElementById('amDotRegulated').value;
 
   if (serialNum) payload['Serial Number'] = serialNum;
-  if (makeOem) payload['Make/OEM'] = makeOem;
+  if (makeOem) payload['Make / OEM'] = makeOem;
   if (model) payload['Model'] = model;
   if (yearVal) payload['Year'] = parseInt(yearVal);
-  if (fuelType) payload['Fuel Type'] = fuelType;
-  if (engineMakeModel) payload['Engine Make/Model'] = engineMakeModel;
-  if (transType) payload['Transmission Type'] = transType;
-  if (driveConfig) payload['Drive Configuration'] = driveConfig;
-  if (fuelTankCap) payload['Fuel Tank Capacity'] = parseFloat(fuelTankCap);
-  if (dotRegulated === '1') payload['DOT Regulated'] = true;
+  if (fuelType) payload['fuel_type'] = fuelType;
+  if (engineMakeModel) payload['engine_make_model'] = engineMakeModel;
+  if (transType) payload['trans_type'] = transType;
+  if (driveConfig) payload['Drive Config'] = driveConfig;
+  if (fuelTankCap) payload['fuel_tank_capacity'] = parseFloat(fuelTankCap);
+  if (dotRegulated === '1') payload['dot_regulated'] = '1';
+  else payload['dot_regulated'] = '0';
 
   try {
     var resp = await fetch('/api/Equipment', {
