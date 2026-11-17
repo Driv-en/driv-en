@@ -537,9 +537,26 @@ function clearAddForm() {
 function cleanDuplicateHeader() {
   var header = document.getElementById('dashHeader');
   if (!header) return;
+  // Remove known duplicate row classes
   var toRemove = header.querySelectorAll('.dash-header-row2, .dash-header-row3, .dash-utility-bar');
   toRemove.forEach(function(el) { el.remove(); });
-  console.log('[AM-Additions] Header cleanup: removed', toRemove.length, 'duplicate rows');
+  // Also remove any child divs after the first one (the first is the main header row)
+  var children = header.children;
+  if (children.length > 1) {
+    for (var i = 1; i < children.length; i++) {
+      var child = children[i];
+      // Don't remove if it looks like part of the main header (has logo or nav)
+      if (child.className && (child.className.indexOf('logo') !== -1 || child.className.indexOf('nav') !== -1)) continue;
+      // Remove if it contains a title/heading element
+      var heading = child.querySelector('h1, h2, h3, .dash-title, .page-title, .dash-header-title');
+      if (heading || child.className === '' || (child.className && child.className.indexOf('row') !== -1)) {
+        console.log('[AM-Additions] Removing duplicate header child:', child.className || '(no class)', child.textContent.substring(0, 50));
+        child.remove();
+        i--; // adjust index after removal
+      }
+    }
+  }
+  console.log('[AM-Additions] Header cleanup complete, children remaining:', header.children.length);
 }
 
 // Watch for service worker injecting stale header rows
@@ -556,14 +573,13 @@ if (typeof MutationObserver !== 'undefined') {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SET MAP MODE FALLBACK — if setMapMode not defined in main JS
-// Handles: forms (asset GPS), projects (geocoded addresses),
-//          breadcrumb (fuel purchase locations as trail)
+// SET MAP MODE — always override with our enhanced version
+// (main JS version may exist but doesn't handle projects/breadcrumb)
 // ═══════════════════════════════════════════════════════════════
-if (typeof setMapMode !== 'function') {
-  window.setMapMode = function(mode) {
-    console.log('[AM-Additions] setMapMode:', mode);
-    mapMode = mode;
+var _originalSetMapMode = (typeof setMapMode === 'function') ? setMapMode : null;
+window.setMapMode = function(mode) {
+  console.log('[AM-Additions] setMapMode:', mode);
+  mapMode = mode;
     var formsBtn = document.getElementById('amMapModeForms');
     var projBtn = document.getElementById('amMapModeProjects');
     var bcBtn = document.getElementById('amMapModeBreadcrumb');
@@ -601,8 +617,7 @@ if (typeof setMapMode !== 'function') {
       if (bcSelect.value) renderBreadcrumbTrail();
     }
   };
-  console.log('[AM-Additions] setMapMode fallback defined');
-}
+  console.log('[AM-Additions] setMapMode override installed');
 
 // ── Geocode helper using Nominatim (free OpenStreetMap geocoder) ──
 var geocodeCache = {};
@@ -759,14 +774,72 @@ function processBreadcrumbData(items, addressField) {
 document.addEventListener('dashSessionLoaded', function() {
   setTimeout(function() {
     cleanDuplicateHeader();
+    populateWelcomeCard();
     loadAmColOrder();
     setupInfoModals();
     renderTableHead();
     renderAssetTable();
     updateKpiFix();
   }, 500);
-  // Run header cleanup again after 2s to catch delayed service worker injection
-  setTimeout(cleanDuplicateHeader, 2000);
+  setTimeout(function() {
+    cleanDuplicateHeader();
+    populateWelcomeCard();
+  }, 2000);
 }, true);
 
 console.log('[AM-Additions] Fully loaded — all patches and fixes applied');
+
+// ═══════════════════════════════════════════════════════════════
+// WELCOME CARD FALLBACK — populate if dashboard-common.js doesn't
+// ═══════════════════════════════════════════════════════════════
+function populateWelcomeCard() {
+  var nameEl = document.getElementById('welcome-name');
+  if (!nameEl) return;
+  // Check if already populated by dashboard-common.js
+  if (nameEl.textContent && nameEl.textContent !== 'Welcome back' && nameEl.textContent.indexOf('Welcome back') === -1) return;
+  if (nameEl.textContent && nameEl.textContent.trim().length > 15) return;
+
+  // Try to get user data from localStorage or global variables
+  var userData = null;
+  try { userData = JSON.parse(localStorage.getItem('driven_user') || '{}'); } catch(e) {}
+  if (!userData || !userData.name) {
+    try { userData = JSON.parse(localStorage.getItem('driven_session') || '{}'); } catch(e) {}
+  }
+  if (!userData || !userData.name) {
+    try { userData = JSON.parse(localStorage.getItem('driven_auth') || '{}'); } catch(e) {}
+  }
+
+  // Try global variables that dashboard-common.js might set
+  if (!userData || !userData.name) {
+    if (typeof currentUser !== 'undefined' && currentUser) userData = currentUser;
+    else if (typeof sessionUser !== 'undefined' && sessionUser) userData = sessionUser;
+    else if (typeof userInfo !== 'undefined' && userInfo) userData = userInfo;
+  }
+
+  if (userData && userData.name) {
+    nameEl.textContent = 'Welcome back, ' + userData.name;
+    var roleEl = document.getElementById('welcome-role');
+    if (roleEl && userData.role) roleEl.textContent = userData.role;
+    var emailEl = document.getElementById('welcome-email');
+    if (emailEl && userData.email) emailEl.textContent = userData.email;
+    console.log('[AM-Additions] Welcome card populated from fallback:', userData.name);
+  } else {
+    // Try fetching from auth API
+    fetch('/auth/get-session')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data && data.user) {
+          var u = data.user;
+          nameEl.textContent = 'Welcome back, ' + (u.name || u.displayName || u.email || 'User');
+          var roleEl = document.getElementById('welcome-role');
+          if (roleEl && u.role) roleEl.textContent = u.role;
+          var emailEl = document.getElementById('welcome-email');
+          if (emailEl && u.email) emailEl.textContent = u.email;
+          console.log('[AM-Additions] Welcome card populated from API:', u.name || u.email);
+        }
+      })
+      .catch(function(e) {
+        console.log('[AM-Additions] Could not populate welcome card:', e.message);
+      });
+  }
+}
