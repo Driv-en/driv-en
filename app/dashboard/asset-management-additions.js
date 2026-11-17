@@ -128,14 +128,29 @@ var decodedRecalls = [];
 async function decodeVin() {
   var vin = document.getElementById('amVinInput').value.trim();
   if (!vin) { showAddMessage('Please enter a VIN.', 'error'); return; }
-  if (vin.length !== 17) { showAddMessage('VIN must be 17 characters.', 'error'); return; }
+  if (vin.length !== 17) { showAddMessage('VIN must be exactly 17 characters.', 'error'); return; }
+
+  // ── Duplicate check: is this VIN already in the assets table? ──
+  var existing = allAssets.find(function(a) {
+    return a.serialNumber && a.serialNumber.toUpperCase() === vin;
+  });
+  if (existing) {
+    showAddMessage('⚠ This VIN is already registered as asset "' + (existing.assetNumber || existing.type || 'unknown') + '". Duplicate entry prevented.', 'error');
+    return;
+  }
+
   var btn = document.getElementById('btnDecodeVin');
   if (btn) { btn.disabled = true; btn.textContent = 'Decoding...'; }
   try {
-    var resp = await fetch('/api/vin-decode/' + encodeURIComponent(vin));
+    // ── Correct endpoint: POST /api/vin-decode with JSON body ──
+    var resp = await fetch('/api/vin-decode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vin: vin })
+    });
     var data = await resp.json();
     if (!resp.ok || !data.success) {
-      showAddMessage(data.error || 'VIN decode failed.', 'error');
+      showAddMessage(data.error || 'VIN decode failed. The NHTSA vPIC API may not recognize this VIN.', 'error');
       return;
     }
     decodedVinData = data.vehicle || {};
@@ -145,17 +160,28 @@ async function decodeVin() {
     if (v.model) document.getElementById('amModel').value = v.model;
     if (v.modelYear) document.getElementById('amYear').value = v.modelYear;
     if (v.fuelTypePrimary) document.getElementById('amFuelType').value = v.fuelTypePrimary;
-    if (v.engineMake) document.getElementById('amEngineMakeModel').value = (v.engineMake || '') + (v.engineModel ? ' ' + v.engineModel : '');
+    if (v.engineMake || v.engineModel) document.getElementById('amEngineMakeModel').value = [v.engineMake, v.engineModel].filter(Boolean).join(' ');
     if (v.transmissionStyle) document.getElementById('amTransType').value = v.transmissionStyle;
     if (v.driveType) document.getElementById('amDriveConfig').value = v.driveType;
     if (v.fuelTankCapacity) document.getElementById('amFuelTankCap').value = v.fuelTankCapacity;
+    // Always set serial number to the VIN itself
+    document.getElementById('amSerialNumber').value = vin;
     var result = document.getElementById('vinDecodeResult');
-    if (result) result.style.display = 'block';
+    if (result) {
+      result.style.display = 'block';
+      result.innerHTML = '✓ VIN decoded — fields auto-populated. <strong>Please verify all extracted information is correct before saving.</strong>';
+    }
     var recallResult = document.getElementById('vinRecallsResult');
     if (recallResult) {
       if (decodedRecalls.length > 0) {
         recallResult.style.display = 'block';
-        recallResult.innerHTML = '<strong style="color:#dc2626;">⚠ ' + decodedRecalls.length + ' open recall(s) found for this VIN.</strong>';
+        var html = '<strong>⚠ ' + decodedRecalls.length + ' open recall' + (decodedRecalls.length === 1 ? '' : 's') + ' found for this VIN:</strong>';
+        html += '<ul style="margin:6px 0 0 18px;font-size:12px;">';
+        decodedRecalls.forEach(function(r) {
+          html += '<li>' + escapeHtml(r.component || 'Unknown component') + ' — NHTSA #' + escapeHtml(r.nhtsaRecallNumber || 'N/A') + '</li>';
+        });
+        html += '</ul>';
+        recallResult.innerHTML = html;
       } else {
         recallResult.style.display = 'none';
       }
@@ -163,6 +189,7 @@ async function decodeVin() {
     showAddMessage('VIN decoded successfully. Please verify all extracted information is correct.', 'success');
   } catch(e) {
     showAddMessage('VIN decode error: ' + e.message, 'error');
+    if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management: VIN decode failed — ' + e.message, 'decodeVin', e.stack);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Decode VIN'; }
   }
