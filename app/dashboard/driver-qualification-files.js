@@ -58,7 +58,16 @@ var DQF_MODAL_MAP = {
     // Load drivers
     await loadDrivers();
     populateDqfWelcome();
+    // Apply saved column order
+    if (dqfColOrder && dqfColOrder.length) {
+      var ordered = [];
+      dqfColOrder.forEach(function(k) { var c = DQF_COL_DEFS.find(function(d) { return d.key === k; }); if (c) ordered.push(c); });
+      DQF_COL_DEFS.forEach(function(c) { if (dqfColOrder.indexOf(c.key) === -1) ordered.push(c); });
+      DQF_COL_DEFS = ordered;
+    }
+    dqfRenderTableHead();
     renderDriverTable();
+    dqfInitTableFeatures();
     updateKpis();
     checkReminders();
   } catch (e) {
@@ -201,16 +210,15 @@ function renderDriverTable() {
     var name = (d.first_name || '') + ' ' + (d.last_name || '');
     if (!name.trim()) name = d.full_name || d.email || 'Unknown';
     var tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td>' + esc(name) + '</td>' +
-      '<td>' + esc(d.cdl_class && d.cdl_class !== 'none' ? d.cdl_class : '—') + '</td>' +
-      '<td>' + badge(d.driving_record_status) + '</td>' +
-      '<td>' + badge(d.medical_card_status) + '</td>' +
-      '<td>' + badge(d.drug_test_status) + '</td>' +
-      '<td>' + badge(d.background_check_status) + '</td>' +
-      '<td>' + badge(d.auto_policy_status) + '</td>' +
-      '<td>' + fileStatusBadge(d.step2_status) + '</td>' +
-      '<td><button class="dqf-row-action" onclick="openDriverProfile(\'' + esc(d.id) + '\')">Open File</button></td>';
+    var cells = '';
+    DQF_COL_DEFS.forEach(function(col) {
+      if (col.key === 'name') cells += '<td>' + esc(name) + '</td>';
+      else if (col.key === 'cdl_class') cells += '<td>' + esc(d.cdl_class && d.cdl_class !== 'none' ? d.cdl_class : '\u2014') + '</td>';
+      else if (col.key === 'actions') cells += '<td><button class="dqf-row-action" onclick="openDriverProfile(\'' + esc(d.id) + '\')">Open File</button></td>';
+      else if (col.key === 'step2_status') cells += '<td>' + fileStatusBadge(d.step2_status) + '</td>';
+      else cells += '<td>' + badge(d[col.key]) + '</td>';
+    });
+    tr.innerHTML = cells;
     tbody.appendChild(tr);
   });
   document.querySelectorAll('.dqf-table th').forEach(function(th) {
@@ -238,18 +246,146 @@ function populateDqfWelcome() {
     try { u = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user") || '{}'); } catch(e) { u = {}; }
   }
   window.dashUser = u;
+  var orgName = u.org_name || u.company_name || localStorage.getItem('driven_org_name') || '';
   var nameEl = document.getElementById('dqf-welcome-name');
   if (nameEl) {
     var fn = u.first_name || u.firstName || '';
     var ln = u.last_name || u.lastName || '';
     var full = u.full_name || u.name || '';
     var name = full || ((fn + ' ' + ln).trim()) || '';
-    nameEl.textContent = name ? ('Welcome back, ' + name) : 'Welcome back';
+    nameEl.textContent = name ? ('Welcome back, ' + name + (orgName ? ' \u2014 ' + orgName : '')) : 'Welcome back';
   }
   var roleEl = document.getElementById('dqf-welcome-role');
   if (roleEl) roleEl.textContent = u.role || u.role_name || u.role_id || '';
   var emailEl = document.getElementById('dqf-welcome-email');
   if (emailEl) emailEl.textContent = u.email || '';
+}
+
+// ===== COLUMN RESIZE & DRAG-AND-DROP (ported from user-management) =====
+var DQF_COL_DEFS = [
+  { key: 'name', label: 'Driver Name', w: 180 },
+  { key: 'cdl_class', label: 'CDL Class', w: 90 },
+  { key: 'driving_record_status', label: 'DL Status', w: 120 },
+  { key: 'medical_card_status', label: 'Med Card', w: 110 },
+  { key: 'drug_test_status', label: 'Drug Test', w: 100 },
+  { key: 'background_check_status', label: 'Background', w: 130 },
+  { key: 'auto_policy_status', label: 'Auto Policy', w: 100 },
+  { key: 'step2_status', label: 'File Status', w: 100 },
+  { key: 'actions', label: 'Actions', w: 100 }
+];
+var dqfColWidths = {};
+var dqfColOrder = [];
+try { dqfColWidths = JSON.parse(localStorage.getItem('dqf_col_widths') || '{}'); } catch(e) {}
+try { dqfColOrder = JSON.parse(localStorage.getItem('dqf_col_order') || '[]'); } catch(e) {}
+
+function dqfApplyColWidths() {
+  var table = document.getElementById('dqfDriverTable');
+  if (!table) return;
+  table.style.tableLayout = 'fixed';
+  table.style.width = 'max-content';
+  DQF_COL_DEFS.forEach(function(col) {
+    var w = dqfColWidths[col.key] || (col.w + 'px');
+    var th = table.querySelector('th[data-col-key="' + col.key + '"]');
+    if (th) { th.style.width = w; th.style.minWidth = w; th.style.maxWidth = w; }
+    var idx = Array.from(th ? th.parentNode.children : []).indexOf(th);
+    if (idx >= 0) {
+      table.querySelectorAll('tbody tr').forEach(function(row) {
+        if (row.children[idx]) { row.children[idx].style.width = w; row.children[idx].style.minWidth = w; row.children[idx].style.maxWidth = w; }
+      });
+    }
+  });
+}
+
+function dqfInitColResize() {
+  var resizers = document.querySelectorAll('.dqf-resizer');
+  resizers.forEach(function(resizer) {
+    resizer.addEventListener('mousedown', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      var th = resizer.parentNode;
+      var table = th.closest('table');
+      var startX = e.pageX;
+      var startWidth = th.offsetWidth;
+      var colKey = th.getAttribute('data-col-key');
+      var colIndex = Array.from(th.parentNode.children).indexOf(th);
+
+      function onMove(me) {
+        var newWidth = Math.max(60, startWidth + (me.pageX - startX)) + 'px';
+        th.style.width = newWidth;
+        th.style.minWidth = newWidth;
+        th.style.maxWidth = newWidth;
+        if (table) {
+          table.querySelectorAll('tbody tr').forEach(function(row) {
+            if (row.children[colIndex]) { row.children[colIndex].style.width = newWidth; row.children[colIndex].style.minWidth = newWidth; row.children[colIndex].style.maxWidth = newWidth; }
+          });
+        }
+        dqfColWidths[colKey] = newWidth;
+      }
+      function onEnd() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        localStorage.setItem('dqf_col_widths', JSON.stringify(dqfColWidths));
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onEnd);
+    });
+  });
+}
+
+function dqfAttachDragDrop() {
+  var draggedKey = null;
+  var headers = document.querySelectorAll('#dqfDriverTable th.draggable-th');
+  headers.forEach(function(th) {
+    th.addEventListener('dragstart', function(e) {
+      draggedKey = th.getAttribute('data-col-key');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    th.addEventListener('dragenter', function(e) {
+      if (!draggedKey || draggedKey === th.getAttribute('data-col-key')) return;
+      th.classList.add('drag-over-left');
+    });
+    th.addEventListener('dragover', function(e) { e.preventDefault(); });
+    th.addEventListener('dragleave', function(e) { th.classList.remove('drag-over-left'); });
+    th.addEventListener('drop', function(e) {
+      e.preventDefault();
+      th.classList.remove('drag-over-left');
+      var targetKey = th.getAttribute('data-col-key');
+      if (!draggedKey || draggedKey === targetKey) return;
+      var fromIdx = DQF_COL_DEFS.findIndex(function(c) { return c.key === draggedKey; });
+      var toIdx = DQF_COL_DEFS.findIndex(function(c) { return c.key === targetKey; });
+      if (fromIdx !== -1 && toIdx !== -1) {
+        var moved = DQF_COL_DEFS.splice(fromIdx, 1)[0];
+        DQF_COL_DEFS.splice(toIdx, 0, moved);
+        localStorage.setItem('dqf_col_order', JSON.stringify(DQF_COL_DEFS.map(function(c) { return c.key; })));
+        dqfRenderTableHead();
+        renderDriverTable();
+      }
+    });
+  });
+}
+
+function dqfRenderTableHead() {
+  var thead = document.querySelector('#dqfDriverTable thead tr');
+  if (!thead) return;
+  thead.innerHTML = '';
+  DQF_COL_DEFS.forEach(function(col) {
+    var th = document.createElement('th');
+    th.setAttribute('data-col', col.key);
+    th.setAttribute('data-col-key', col.key);
+    if (col.key !== 'actions') {
+      th.className = 'draggable-th';
+      th.setAttribute('draggable', 'true');
+      th.setAttribute('onclick', 'dqfSort(\'' + col.key + '\')');
+    }
+    th.innerHTML = col.label + (col.key !== 'actions' ? '<span class="dqf-resizer"></span>' : '');
+    thead.appendChild(th);
+  });
+}
+
+function dqfInitTableFeatures() {
+  dqfApplyColWidths();
+  dqfInitColResize();
+  dqfAttachDragDrop();
 }
 
 function badge(status) {
