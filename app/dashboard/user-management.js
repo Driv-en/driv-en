@@ -514,25 +514,40 @@ async function initializeUserManagementPage() {
     });
   }
 
-  // ===== Wire UOM select =====
+  // ===== Wire UOM select (matches admin dashboard pattern) =====
   var uomSelect = document.getElementById('umUomSelect');
   var uomHint = document.getElementById('umUomHint');
   if (uomSelect) {
-    var savedUom = localStorage.getItem('driven_uom') || 'org_default';
-    uomSelect.value = savedUom;
-    if (uomHint) {
-      var uomHints = { 'org_default': 'Following organization default', 'imperial': 'US Gallons, Miles, °F', 'metric': 'Liters, Kilometers, °C' };
-      uomHint.textContent = uomHints[savedUom] || '';
+    if (window.DRIVEN_UNITS && DRIVEN_UNITS.getUserUnitPreference) {
+      DRIVEN_UNITS.getUserUnitPreference().then(function(info) {
+        if (!info) return;
+        uomSelect.value = info.user_preference || 'org_default';
+        if (info.org_default && info.user_preference === 'org_default') {
+          if (uomHint) uomHint.textContent = 'Org default: ' + (info.org_default === 'metric' ? 'Metric' : 'Imperial');
+        } else if (uomHint) { uomHint.textContent = ''; }
+      });
+    } else {
+      var savedUom = localStorage.getItem('driven_uom') || 'org_default';
+      uomSelect.value = savedUom;
+      var storedSys = localStorage.getItem('driv-en-unit-system') || 'imperial';
+      if (uomHint && savedUom === 'org_default') uomHint.textContent = 'Org default: ' + (storedSys === 'metric' ? 'Metric' : 'Imperial');
     }
     uomSelect.addEventListener('change', function() {
       var val = uomSelect.value;
-      localStorage.setItem('driven_uom', val);
-      if (window.DRIVEN_UNITS) { try { DRIVEN_UNITS.setPreference(val); } catch(e){} }
-      if (uomHint) {
-        var hints = { 'org_default': 'Following organization default', 'imperial': 'US Gallons, Miles, °F', 'metric': 'Liters, Kilometers, °C' };
-        uomHint.textContent = hints[val] || '';
+      if (window.DRIVEN_UNITS && DRIVEN_UNITS.setUserUnitPreference) {
+        DRIVEN_UNITS.setUserUnitPreference(val).then(function(result) {
+          if (!result) { alert('Failed to update unit preference. Please try again.'); return; }
+          if (uomHint) { if (val === 'org_default' && result.unit_system) { uomHint.textContent = 'Org default: ' + (result.unit_system === 'metric' ? 'Metric' : 'Imperial'); } else { uomHint.textContent = ''; } }
+          if (window.DRIVEN_APPLY_UNITS) { try { DRIVEN_APPLY_UNITS.refresh(); } catch(e){} }
+          try { localStorage.setItem('driv-en-unit-system-changed', Date.now().toString()); localStorage.setItem('driv-en-unit-system', result.unit_system); } catch (e) {}
+          showToast('Units of measure updated.', 'success');
+        });
+      } else {
+        localStorage.setItem('driven_uom', val);
+        var sys = localStorage.getItem('driv-en-unit-system') || 'imperial';
+        if (uomHint) { if (val === 'org_default') { uomHint.textContent = 'Org default: ' + (sys === 'metric' ? 'Metric' : 'Imperial'); } else { uomHint.textContent = ''; } }
+        showToast('Units of measure updated.', 'success');
       }
-      showToast('Units of measure updated.', 'success');
     });
   }
 
