@@ -392,6 +392,8 @@ function normalizeEmployee(r) {
     driversLicense: parseVal(r.drivers_license || r.driversLicense),
     dlState: parseVal(r.dl_state || r.dlState),
     is_commercial_driver: parseVal(r.is_commercial_driver),
+    dl_expiration: parseVal(r.dl_expiration || r.dlExpiration),
+    drives_company_vehicle: parseVal(r.drives_company_vehicle || r.drivesCompanyVehicle),
     step2_status: parseVal(r.step2_status),
     driving_record_status: parseVal(r.driving_record_status),
     medical_card_status: parseVal(r.medical_card_status),
@@ -936,7 +938,13 @@ function renderRolesTable() {
         '<button class="um-table-btn" style="border-color:#dc2626; color:#dc2626;" onclick="deleteRole(\'' + escapeHtml(String(r.id || '')) + '\')">Delete</button>' +
         '</div>';
     }
-    tr.innerHTML = '<td><strong>' + escapeHtml(r.name) + '</strong></td>' +
+    var activeCount = allEmployees.filter(function(e) {
+      return e.status === 'Active' && (e.role === r.name || (e.role || '').toLowerCase() === (r.name || '').toLowerCase());
+    }).length;
+    var countBadge = '<span style="font-size:11px; padding:2px 8px; border-radius:10px; margin-left:8px; ' +
+      (activeCount > 0 ? 'background:rgba(34,197,94,0.15); color:#16a34a;' : 'background:rgba(220,38,38,0.15); color:#dc2626;') +
+      '">' + activeCount + ' active</span>';
+    tr.innerHTML = '<td><strong>' + escapeHtml(r.name) + '</strong>' + countBadge + '</td>' +
                    '<td>' + escapeHtml(r.description || '\u2014') + '</td>' +
                    '<td>' + (isSystem ? 'Yes' : 'No') + '</td>' +
                    '<td class="am-actions">' + actionsHtml + '</td>';
@@ -1067,6 +1075,21 @@ function renderActivityLogTable() {
 function updateKpi() {
   document.getElementById('kpiActiveEmployees').textContent = allEmployees.filter(function(e){ return e.status === 'Active'; }).length;
   document.getElementById('kpiRoles').textContent = allOrgRoles.length;
+  checkAdminFlag();
+}
+
+function checkAdminFlag() {
+  var banner = document.getElementById('adminFlagBanner');
+  if (!banner) return;
+  // Gate: only show to users who can assign roles (Admin / Fleet Manager)
+  var u = window.dashUser || window.drivenUser || {};
+  var userRole = String(u.role || u.role_name || u.roleName || '').toLowerCase();
+  var canAssignRoles = (userRole === 'admin' || userRole === 'fleet manager' || userRole === 'fleet_manager' || u.can_assign_roles === true || u.is_admin === true);
+  if (!canAssignRoles) { banner.style.display = 'none'; return; }
+  var activeAdmins = allEmployees.filter(function(e) {
+    return e.status === 'Active' && (e.role === 'Admin' || (e.role || '').toLowerCase() === 'admin');
+  }).length;
+  banner.style.display = activeAdmins > 0 ? 'none' : 'flex';
 }
 
 // ============================================================
@@ -1296,6 +1319,8 @@ function openAddEmpModal() {
   document.getElementById('addEmpDl').value = '';
   document.getElementById('addEmpDlState').value = '';
   var cdEl = document.getElementById('addEmpCommercialDriver'); if (cdEl) cdEl.value = 'no';
+  var dlExpEl = document.getElementById('addEmpDlExp'); if (dlExpEl) dlExpEl.value = '';
+  var dcvEl = document.getElementById('addEmpDrivesCoVehicle'); if (dcvEl) dcvEl.value = 'no';
   document.getElementById('umAddEmpModal').classList.add('active');
 }
 
@@ -1321,6 +1346,8 @@ function openEmpEditModal(id) {
   document.getElementById('addEmpDl').value = emp.driversLicense !== '\u2014' ? emp.driversLicense : '';
   document.getElementById('addEmpDlState').value = emp.dlState !== '\u2014' ? emp.dlState : '';
   var cdEl2 = document.getElementById('addEmpCommercialDriver'); if (cdEl2) cdEl2.value = emp.is_commercial_driver === 'yes' ? 'yes' : 'no';
+  var dlExpEl2 = document.getElementById('addEmpDlExp'); if (dlExpEl2) dlExpEl2.value = (emp.dl_expiration && emp.dl_expiration !== '\u2014') ? emp.dl_expiration : '';
+  var dcvEl2 = document.getElementById('addEmpDrivesCoVehicle'); if (dcvEl2) dcvEl2.value = emp.drives_company_vehicle === 'yes' ? 'yes' : 'no';
   document.getElementById('umAddEmpModal').classList.add('active');
 }
 
@@ -1343,6 +1370,8 @@ async function submitSaveEmployee() {
   var dl = document.getElementById('addEmpDl').value.trim();
   var dlState = document.getElementById('addEmpDlState').value.trim();
   var isCD = document.getElementById('addEmpCommercialDriver') ? document.getElementById('addEmpCommercialDriver').value : 'no';
+  var dlExp = document.getElementById('addEmpDlExp') ? document.getElementById('addEmpDlExp').value : '';
+  var drivesCoVeh = document.getElementById('addEmpDrivesCoVehicle') ? document.getElementById('addEmpDrivesCoVehicle').value : 'no';
 
   // Upload DL photos if selected (uploads to R2 via API)
   var dlFrontKey = '', dlBackKey = '';
@@ -1360,6 +1389,19 @@ async function submitSaveEmployee() {
     return;
   }
 
+  // Warn if deactivating the last active Admin
+  if (status === 'Inactive' && (role === 'Admin' || role === 'admin')) {
+    var otherActiveAdmins = allEmployees.filter(function(e) {
+      return String(e.id) !== String(id) && e.status === 'Active' &&
+             (e.role === 'Admin' || (e.role || '').toLowerCase() === 'admin');
+    }).length;
+    if (otherActiveAdmins === 0) {
+      if (!confirm('This is the last active Admin for your organization. You will lose administrative access until another employee is assigned the Admin role. Continue?')) {
+        return;
+      }
+    }
+  }
+
   var fullStr = [fn, mn, ln].filter(Boolean).join(' ') + (suffix ? ' ' + suffix : '');
   var payload = {
     id: id || undefined, org_id: currentUserOrgId,
@@ -1367,6 +1409,8 @@ async function submitSaveEmployee() {
     email: em, employee_number: empNum, role: role, phone: phone, dob: dob, address: addr,
     city: city, state: state, zip: zip, status: status, drivers_license: dl, dl_state: dlState,
     is_commercial_driver: isCD,
+    dl_expiration: dlExp || undefined,
+    drives_company_vehicle: drivesCoVeh,
     dl_photo_front: dlFrontKey || undefined,
     dl_photo_back: dlBackKey || undefined
   };
