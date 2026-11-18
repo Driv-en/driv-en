@@ -132,14 +132,12 @@ var helpContent = {
   'addasset-instructions': { title: 'Quick Add Asset — Instructions', body: '<ol><li><strong>VIN Decode:</strong> Enter the 17-character VIN and click "Decode VIN". Specs auto-populate.</li><li><strong>Verify Decoded Data:</strong> Review all extracted information. Confirm make, model, year, fuel type, engine, and other specs are correct before proceeding.</li><li><strong>Company Fields:</strong> Fill in Asset Number, Category, Division, Assigned Operator, Status, Project, Location.</li><li><strong>DOT:</strong> Mark whether the vehicle is DOT-regulated.</li><li><strong>Save:</strong> Click "Add Asset".</li></ol>' },
   'bulkvin': { title: 'Bulk Add by VIN — Purpose', body: 'Add multiple company-owned assets at once by pasting VINs. Each is decoded via NHTSA vPIC.' },
   'bulkvin-instructions': { title: 'Bulk Add by VIN — Instructions', body: '<ol><li><strong>Paste VINs:</strong> Enter up to 500 VINs (one per line).</li><li><strong>Set Defaults:</strong> Choose default Location and Status.</li><li><strong>Decode:</strong> Click "Decode All VINs".</li><li><strong>Verify Decoded Data:</strong> Review the results table. Confirm all decoded information (make, model, year, fuel type) is correct for each vehicle before creating assets.</li><li><strong>Review Failures:</strong> Failed VINs shown in red.</li><li><strong>Create:</strong> Click "Create Assets".</li></ol>' },
-  'location': { title: 'Location Map — Purpose', body: 'View all assets on a map. Switch between Forms view, Projects view, and Breadcrumb trails. The instructions below are specific to the current map view and will change when you switch views — check back as needed.' },
-  'location-instructions': { title: 'Location Map — Instructions', body: '<p style="margin-bottom:8px;">These instructions are specific to each map view and will update when you switch. Select a view above to see its instructions.</p><ol><li><strong>Forms:</strong> Shows assets at their last reported location.</li><li><strong>Projects:</strong> Groups assets by project site.</li><li><strong>Breadcrumbs:</strong> Shows location history trail for a selected asset.</li><li>Click any pin for details, Street View, and asset details link.</li></ol>' },
-  'location-forms': { title: 'Location Map — Forms View — Purpose', body: 'Shows every asset at its last reported GPS location from fuel transactions and form submissions. Pins are color-coded by activity type.' },
-  'location-forms-instructions': { title: 'Location Map — Forms View — Instructions', body: '<ol><li>Pins show each asset at its last reported location.</li><li>Pin colors indicate activity type (fuel purchase, form entry, inspection, work order, PM/maintenance).</li><li>Click any pin to see asset details, Street View, and a link to the full asset record.</li><li>Use the Street View link in any popup to see a ground-level view of the asset location.</li></ol>' },
-  'location-projects': { title: 'Location Map — Projects View — Purpose', body: 'Shows all project sites as pins on the map, geocoded from project addresses. Click a pin to see the project name, code, and address.' },
-  'location-projects-instructions': { title: 'Location Map — Projects View — Instructions', body: '<ol><li>Pins represent project sites, not individual assets.</li><li>Click any pin to see the project name, code, and address.</li><li>Use the Street View link to see a ground-level view of the project site.</li><li>Project addresses are geocoded via OpenStreetMap — if a pin is missing, the project may not have a valid address.</li></ol>' },
-  'location-breadcrumb': { title: 'Location Map — Breadcrumb Trail — Purpose', body: 'Shows the GPS location history for a selected asset over a chosen time period. A colored line connects the trail points, and the legend shows which activity types are displayed.' },
-  'location-breadcrumb-instructions': { title: 'Location Map — Breadcrumb Trail — Instructions', body: '<ol><li><strong>Select Asset:</strong> Choose an asset from the dropdown, or "All Active Assets" to see trails for all assets.</li><li><strong>Select Year:</strong> Choose the year to view.</li><li><strong>Select Range:</strong> For the current year, choose Today, Last 7/30/90 Days, or Year to Date.</li><li><strong>Form Entry Locations:</strong> Check the box to also show where fuel form entries were submitted (the GPS location when the form was filled out, which may differ from the fuel stop location).</li><li>The legend in the bottom-right corner shows which activity types are color-coded on the trail.</li><li>Click any trail point for details and Street View.</li></ol>' },
+  'location': { title: 'Location Map — Purpose', body: 'View all assets on a single map. Use the asset filter dropdown to switch between viewing all assets at once or a single asset\'s location history trail. The instructions below are specific to the current view and will change when you switch — check back as needed.' },
+  'location-instructions': { title: 'Location Map — Instructions', body: '<p style="margin-bottom:8px;">Use the <strong>asset filter dropdown</strong> above the map to choose what to view. Instructions below change based on your selection.</p><ol><li><strong>All Assets (default):</strong> Shows every asset at its last reported GPS location, color-coded by activity type.</li><li><strong>Specific Asset:</strong> Shows the location history trail for the selected asset. Time filter controls (year, date range, form entry locations) appear when an asset is selected.</li><li>Click any pin for details and Street View.</li></ol>' },
+  'location-forms': { title: 'Location Map — All Assets View — Purpose', body: 'Shows every asset at its last reported GPS location from fuel transactions and form submissions. Pins are color-coded by activity type.' },
+  'location-forms-instructions': { title: 'Location Map — All Assets View — Instructions', body: '<ol><li>Pins show each asset at its last reported location.</li><li>Pin colors indicate activity type (fuel purchase, form entry, inspection, work order, PM/maintenance).</li><li>Click any pin to see asset details, Street View, and a link to the full asset record.</li><li>Select a specific asset from the dropdown to see its location history trail.</li></ol>' },
+  'location-breadcrumb': { title: 'Location Map — Single Asset Trail — Purpose', body: 'Shows the GPS location history for a selected asset over a chosen time period. A colored line connects the trail points, and the legend shows which activity types are displayed.' },
+  'location-breadcrumb-instructions': { title: 'Location Map — Single Asset Trail — Instructions', body: '<ol><li><strong>Select Asset:</strong> Choose an asset from the dropdown above the map.</li><li><strong>Select Year:</strong> Choose the year to view.</li><li><strong>Select Range:</strong> For the current year, choose Today, Last 7/30/90 Days, or Year to Date.</li><li><strong>Form Entry Locations:</strong> Check the box to also show where fuel form entries were submitted (the GPS location when the form was filled out, which may differ from the fuel stop location).</li><li>The legend in the bottom-right corner shows which activity types are color-coded on the trail.</li><li>Click any trail point for details and Street View.</li><li>Select "All Assets" from the dropdown to return to the overview map.</li></ol>' },
   'inspections': { title: 'Inspections — Purpose', body: 'Track and manage equipment inspections. Inspection records will appear here.' },
   'inspections-instructions': { title: 'Inspections — Instructions', body: '<ol><li>Inspection tracking will appear here once configured.</li></ol>' },
   'workorders': { title: 'Work Orders — Purpose', body: 'Track and manage work orders for asset maintenance and repairs.' },
@@ -521,23 +519,34 @@ switchTab = function(tab) {
               if (amMapInstance) {
                 amMapInstance.invalidateSize();
                 console.log('Map initialized and sized');
-                // Try to render pins
-                if (typeof renderAssetMapPins === 'function') {
+                if (typeof setupMapAssetFilter === 'function') {
+                  setupMapAssetFilter();
+                } else if (typeof renderAssetMapPins === 'function') {
                   renderAssetMapPins();
                 }
               } else {
                 console.warn('initAssetMap did not create amMapInstance — creating fallback map');
                 createFallbackMap(container);
+                if (typeof setupMapAssetFilter === 'function') {
+                  setTimeout(setupMapAssetFilter, 100);
+                }
               }
             }, 300);
           } else {
             amMapInstance.invalidateSize();
-            if (typeof renderAssetMapPins === 'function') renderAssetMapPins();
+            if (typeof setupMapAssetFilter === 'function') {
+              setupMapAssetFilter();
+            } else if (typeof renderAssetMapPins === 'function') {
+              renderAssetMapPins();
+            }
             console.log('Map resized and pins refreshed');
           }
         } else {
           console.warn('initAssetMap not found — creating fallback map');
           createFallbackMap(container);
+          if (typeof setupMapAssetFilter === 'function') {
+            setTimeout(setupMapAssetFilter, 100);
+          }
         }
       }, 300);
     });
@@ -618,39 +627,75 @@ function clearAddForm() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// HEADER CLEANUP — remove duplicate header rows (row2/row3/utility)
+// HEADER REBUILD — completely clear and rebuild as single row
 // ═══════════════════════════════════════════════════════════════
-function cleanDuplicateHeader() {
+function amRebuildHeader() {
   var header = document.getElementById('dashHeader');
   if (!header) return;
-  // The correct structure is: #dashHeader > .dash-header > .dash-header-row1
-  // Remove anything that's NOT .dash-header-row1 inside .dash-header
-  var dashHeaderDiv = header.querySelector('.dash-header') || header;
-  var row1 = dashHeaderDiv.querySelector('.dash-header-row1');
-  if (row1) {
-    // Remove all siblings of row1 inside dashHeaderDiv
-    var siblings = dashHeaderDiv.children;
-    for (var i = siblings.length - 1; i >= 0; i--) {
-      if (siblings[i] !== row1) {
-        console.log('[AM-Additions] Removing duplicate header element:', siblings[i].tagName, siblings[i].className || '(no class)', '"' + siblings[i].textContent.substring(0, 40).trim() + '"');
-        siblings[i].remove();
-      }
-    }
+
+  // Preserve existing logo elements before clearing
+  var logoArea = header.querySelector('#dashCustomerLogoArea');
+  var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img.dash-driven-logo');
+  var title = document.body.getAttribute('data-page-title') || 'Dashboard';
+
+  // Check if already correct (single row, no duplicates)
+  var existingRow1 = header.querySelector('.dash-header-row1');
+  var allH1s = header.querySelectorAll('h1');
+  if (existingRow1 && allH1s.length === 1 && !header.querySelector('.dash-header-row2') && !header.querySelector('.dash-header-row3')) {
+    // Already correct — just make sure title is set
+    var titleEl = document.getElementById('dashPageTitle');
+    if (titleEl) titleEl.textContent = title;
+    return;
   }
-  // Also remove any extra children of #dashHeader that aren't .dash-header
-  var headerChildren = header.children;
-  for (var i = headerChildren.length - 1; i >= 0; i--) {
-    if (headerChildren[i] !== dashHeaderDiv) {
-      console.log('[AM-Additions] Removing extra header child:', headerChildren[i].tagName, headerChildren[i].className || '(no class)');
-      headerChildren[i].remove();
-    }
+
+  console.log('[AM-Additions] Rebuilding header as single row');
+
+  // Clear everything
+  header.innerHTML = '';
+
+  // Build single-row header
+  var dashHeader = document.createElement('div');
+  dashHeader.className = 'dash-header';
+
+  var row1 = document.createElement('div');
+  row1.className = 'dash-header-row1';
+
+  // Left: customer logo
+  var left = document.createElement('div');
+  left.className = 'dash-header-logo-left';
+  if (logoArea) {
+    left.appendChild(logoArea);
+  } else {
+    var ph = document.createElement('div');
+    ph.id = 'dashCustomerLogoArea';
+    ph.innerHTML = '<div class="dash-customer-logo-placeholder">No logo uploaded</div>';
+    left.appendChild(ph);
   }
-  // Remove duplicate #dashPageTitle elements
-  var allTitles = document.querySelectorAll('#dashPageTitle');
-  if (allTitles.length > 1) {
-    for (var i = 1; i < allTitles.length; i++) allTitles[i].remove();
+  row1.appendChild(left);
+
+  // Center: page title
+  var h1 = document.createElement('h1');
+  h1.id = 'dashPageTitle';
+  h1.className = 'dash-header-title';
+  h1.textContent = title;
+  row1.appendChild(h1);
+
+  // Right: DRIV-EN logo
+  var right = document.createElement('div');
+  right.className = 'dash-header-logo-right';
+  if (drivenLogo) {
+    right.appendChild(drivenLogo);
+  } else {
+    var img = document.createElement('img');
+    img.src = '/assets/logo.png?v=2026';
+    img.className = 'dash-driven-logo';
+    img.alt = 'DRIV-EN Logo';
+    right.appendChild(img);
   }
-  console.log('[AM-Additions] Header cleanup complete');
+  row1.appendChild(right);
+
+  dashHeader.appendChild(row1);
+  header.appendChild(dashHeader);
 }
 
 // Watch for service worker injecting stale header rows
@@ -659,7 +704,7 @@ if (typeof MutationObserver !== 'undefined') {
     var header = document.getElementById('dashHeader');
     if (header) {
       var observer = new MutationObserver(function() {
-        cleanDuplicateHeader();
+        amRebuildHeader();
       });
       observer.observe(header, { childList: true, subtree: true });
     }
@@ -667,50 +712,42 @@ if (typeof MutationObserver !== 'undefined') {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SET MAP MODE — always override with our enhanced version
-// (main JS version may exist but doesn't handle projects/breadcrumb)
+// ── Map asset filter: "All Assets" shows all pins, specific asset shows breadcrumb trail ──
+// Replaces the old 3-button mode switcher (Forms/Projects/Breadcrumb)
 // ═══════════════════════════════════════════════════════════════
-var _originalSetMapMode = (typeof setMapMode === 'function') ? setMapMode : null;
-window.setMapMode = function(mode) {
-  console.log('[AM-Additions] setMapMode:', mode);
-  mapMode = mode;
-    var formsBtn = document.getElementById('amMapModeForms');
-    var projBtn = document.getElementById('amMapModeProjects');
-    var bcBtn = document.getElementById('amMapModeBreadcrumb');
-    var bcSelect = document.getElementById('amBreadcrumbAssetSelect');
-    var bcRange = document.getElementById('amBreadcrumbDateRange');
-    if (formsBtn) formsBtn.classList.remove('active');
-    if (projBtn) projBtn.classList.remove('active');
-    if (bcBtn) bcBtn.classList.remove('active');
-    if (bcSelect) bcSelect.style.display = 'none';
-    if (bcRange) bcRange.style.display = 'none';
-    var bcFormLabel = document.getElementById('amBcFormEntryLabel');
-    if (bcFormLabel) bcFormLabel.style.display = 'none';
+window.setupMapAssetFilter = function() {
+  var filter = document.getElementById('amMapAssetFilter');
+  if (!filter) return;
 
-    if (mode === 'forms' && formsBtn) {
-      formsBtn.classList.add('active');
+  // Populate with active assets
+  filter.innerHTML = '<option value="all">All Assets</option>';
+  allAssets.forEach(function(a) {
+    var s = (a.status || '').toLowerCase();
+    if (s === 'retired' || s === 'sold' || s === 'lost') return;
+    var opt = document.createElement('option');
+    opt.value = a.id;
+    opt.textContent = a.assetNumber || a.type || 'Asset ' + a.id;
+    filter.appendChild(opt);
+  });
+
+  filter.onchange = function() {
+    var assetId = filter.value;
+    var bcYear = document.getElementById('amBreadcrumbYear');
+    var bcRange = document.getElementById('amBreadcrumbDateRange');
+    var bcFormLabel = document.getElementById('amBcFormEntryLabel');
+
+    if (assetId === 'all') {
+      // Show all assets (Forms View)
+      mapMode = 'forms';
+      clearGeocodeQueue();
+      if (bcYear) bcYear.style.display = 'none';
+      if (bcRange) bcRange.style.display = 'none';
+      if (bcFormLabel) bcFormLabel.style.display = 'none';
       renderFormsView();
-    } else if (mode === 'projects' && projBtn) {
-      projBtn.classList.add('active');
-      renderProjectsView();
-    } else if (mode === 'breadcrumb' && bcBtn) {
-      bcBtn.classList.add('active');
-      var bcYear = document.getElementById('amBreadcrumbYear');
-      if (bcSelect) {
-        bcSelect.style.display = 'inline-block';
-        bcSelect.innerHTML = '<option value="all">All Active Assets</option>';
-        allAssets.forEach(function(a) {
-          // Only show active assets (not retired, sold, or lost)
-          var s = (a.status || '').toLowerCase();
-          if (s === 'retired' || s === 'sold' || s === 'lost') return;
-          var opt = document.createElement('option');
-          opt.value = a.id;
-          opt.textContent = a.assetNumber || a.type || 'Asset ' + a.id;
-          bcSelect.appendChild(opt);
-        });
-        bcSelect.value = 'all'; // default to All Active Assets
-        bcSelect.onchange = function() { renderBreadcrumbTrail(); };
-      }
+    } else {
+      // Show breadcrumb trail for selected asset
+      mapMode = 'breadcrumb';
+      clearGeocodeQueue();
       if (bcYear) {
         bcYear.style.display = 'inline-block';
         var currentYear = new Date().getFullYear();
@@ -728,36 +765,71 @@ window.setMapMode = function(mode) {
         };
       }
       if (bcRange) {
+        bcRange.style.display = 'inline-block';
         bcRange.onchange = function() { renderBreadcrumbTrail(); };
       }
-      updateDaysFilterVisibility();
-      // Show the form entry locations checkbox
-      var bcFormLabel = document.getElementById('amBcFormEntryLabel');
       if (bcFormLabel) {
         bcFormLabel.style.display = 'inline-flex';
         bcFormLabel.style.alignItems = 'center';
         var bcFormCheck = document.getElementById('amBcFormEntryLocations');
         if (bcFormCheck) {
-          bcFormCheck.checked = false; // default: don't show form entry locations for fuel
+          bcFormCheck.checked = false;
           bcFormCheck.onchange = function() { renderBreadcrumbTrail(); };
         }
       }
-      renderBreadcrumbTrail(); // auto-load with All Active Assets default
+      updateDaysFilterVisibility();
+      renderBreadcrumbTrail();
     }
   };
-  console.log('[AM-Additions] setMapMode override installed');
+
+  // Auto-load "All Assets" view
+  renderFormsView();
+};
+
+// Keep setMapMode as a no-op stub for backward compatibility
+window.setMapMode = function(mode) {
+  console.log('[AM-Additions] setMapMode is deprecated, using asset filter instead');
+};
 
 // ── Geocode helper using Nominatim (free OpenStreetMap geocoder) ──
 // No country restriction — customers may operate in US, Canada, Mexico, and US territories
 // Tries multiple address formats to disambiguate (e.g. "Houston" → "Houston, TX" if state is known)
 //
 // Rate limiting: Nominatim allows max 1 request/second. We queue all requests with
-// 1.1-second spacing to avoid 429s and "Failed to fetch" errors when switching maps rapidly.
+// 600ms spacing (respectful but faster for small batches).
 // Uses XMLHttpRequest instead of fetch to bypass error-handler.js's fetch wrapper
 // (geocode failures are expected/handled and should NOT trigger error emails).
+// Results are cached in localStorage so subsequent map switches are instant.
 var geocodeCache = {};
 var _geocodeQueue = [];
 var _geocodeProcessing = false;
+var _geocodeGen = 0; // generation counter — incremented on map switch to cancel stale callbacks
+
+// Load cache from localStorage on startup
+try {
+  var saved = localStorage.getItem('geocodeCache_v1');
+  if (saved) geocodeCache = JSON.parse(saved);
+} catch(e) {}
+
+function _saveGeocodeCache() {
+  try {
+    // Only save if cache isn't too large (max 500 entries)
+    var keys = Object.keys(geocodeCache);
+    if (keys.length > 500) {
+      // Keep only the most recent 500
+      var toRemove = keys.length - 500;
+      for (var i = 0; i < toRemove; i++) delete geocodeCache[keys[i]];
+    }
+    localStorage.setItem('geocodeCache_v1', JSON.stringify(geocodeCache));
+  } catch(e) {}
+}
+
+// Clear pending geocode queue (called on map switch to prevent stale callbacks)
+function clearGeocodeQueue() {
+  _geocodeQueue = [];
+  _geocodeProcessing = false;
+  _geocodeGen++; // invalidate any in-flight callbacks
+}
 
 function _nominatimXHR(url) {
   return new Promise(function(resolve) {
@@ -782,7 +854,7 @@ function _processGeocodeQueue() {
   var item = _geocodeQueue.shift();
   _nominatimXHR(item.url).then(function(data) {
     item.resolve(data);
-    setTimeout(_processGeocodeQueue, 1100); // Nominatim: max 1 req/sec
+    setTimeout(_processGeocodeQueue, 600); // 600ms spacing — respectful but fast
   });
 }
 
@@ -812,6 +884,7 @@ function geocodeAddress(address, hintState) {
         if (data && data.length > 0) {
           var coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
           geocodeCache[cacheKey] = coords;
+          _saveGeocodeCache();
           resolve(coords);
         } else {
           // Fallback: try free-text query with combined address (no vendor name)
@@ -822,6 +895,7 @@ function geocodeAddress(address, hintState) {
             if (data2 && data2.length > 0) {
               var coords2 = { lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon) };
               geocodeCache[cacheKey] = coords2;
+              _saveGeocodeCache();
               resolve(coords2);
             } else { resolve(null); }
           });
@@ -844,6 +918,7 @@ function geocodeAddress(address, hintState) {
       if (data && data.length > 0) {
         var coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
         geocodeCache[address] = coords;
+        _saveGeocodeCache();
         resolve(coords);
       } else { resolve(null); }
     });
@@ -859,6 +934,8 @@ function renderFormsView() {
   if (window._bcLegend) { amMapInstance.removeControl(window._bcLegend); window._bcLegend = null; }
   amMapInstance.setView([39.5, -98.35], 4);
 
+  var myGen = _geocodeGen; // capture generation so stale callbacks are ignored
+
   // Fetch fuel transactions (which are form submissions with GPS coordinates)
   var now = new Date();
   var fromStr = now.getFullYear() + '-01-01';
@@ -870,6 +947,7 @@ function renderFormsView() {
       return r.json();
     })
     .then(function(data) {
+      if (myGen !== _geocodeGen) return; // user switched away — abort
       var items = data.transactions || data.records || data || [];
       if (!Array.isArray(items)) items = [];
       console.log('[AM-Additions] Forms View: fetched', items.length, 'form submissions');
@@ -930,9 +1008,19 @@ function renderProjectsView() {
   if (window._bcLegend) { amMapInstance.removeControl(window._bcLegend); window._bcLegend = null; }
   amMapInstance.setView([39.5, -98.35], 4);
 
+  var myGen = _geocodeGen; // capture generation so stale callbacks are ignored
+
+  // Show loading indicator
+  var loadingNote = L.popup().setLatLng([39.5, -98.35])
+    .setContent('<div class="am-map-popup"><p>Geocoding project addresses...</p></div>')
+    .openOn(amMapInstance);
+
   fetch('/api/projects')
     .then(function(r) { return r.json(); })
     .then(function(data) {
+      if (myGen !== _geocodeGen) return; // user switched away — abort
+      amMapInstance.closePopup(); // dismiss loading note
+
       var projects = data.projects || data.records || data || [];
       if (!Array.isArray(projects)) projects = [];
       console.log('[AM-Additions] Projects fetched:', projects.length);
@@ -942,9 +1030,11 @@ function renderProjectsView() {
       }
       var bounds = [];
       var pending = 0;
+      var totalWithAddr = 0;
       projects.forEach(function(p) {
         var addr = p.location || p.address || p.city || '';
         if (!addr) return;
+        totalWithAddr++;
         // Extract state hint from project data if available
         var stateHint = p.state || '';
         if (!stateHint && addr) {
@@ -954,18 +1044,32 @@ function renderProjectsView() {
         }
         pending++;
         geocodeAddress(addr, stateHint).then(function(coords) {
+          if (myGen !== _geocodeGen) return; // user switched away — don't add markers
           pending--;
           if (coords) {
             var marker = L.marker([coords.lat, coords.lng]);
             marker.bindPopup('<div class="am-map-popup"><h4>' + escapeHtml(p.name || 'Project') + '</h4><p class="popup-meta">' + escapeHtml(p.code || '') + '</p><p>' + escapeHtml(addr) + '</p><a href="#" onclick="openStreetView(' + coords.lat + ',' + coords.lng + ',\'' + escapeHtml(p.name || 'Project').replace(/'/g, "\\'") + '\'); return false;" style="display:block;margin-top:6px;color:#16a34a;font-size:13px;text-decoration:none;font-weight:600;">Street View &rarr;</a></div>');
             amClusterGroup.addLayer(marker);
             bounds.push([coords.lat, coords.lng]);
+          } else {
+            console.log('[AM-Additions] Geocode failed for project:', p.name, '—', addr);
           }
-          if (pending === 0 && bounds.length > 0) {
-            amMapInstance.fitBounds(bounds, { padding: [50, 50] });
+          if (pending === 0) {
+            if (bounds.length > 0) {
+              amMapInstance.fitBounds(bounds, { padding: [50, 50] });
+            } else if (totalWithAddr > 0) {
+              L.popup().setLatLng([39.5, -98.35])
+                .setContent('<div class="am-map-popup"><p>Could not geocode any project addresses. Addresses may be incomplete or invalid.</p></div>')
+                .openOn(amMapInstance);
+            }
           }
         });
       });
+      if (totalWithAddr === 0) {
+        L.popup().setLatLng([39.5, -98.35])
+          .setContent('<div class="am-map-popup"><p>No projects have addresses to display on the map.</p></div>')
+          .openOn(amMapInstance);
+      }
     })
     .catch(function(e) { console.error('[AM-Additions] Projects fetch error:', e); });
 }
@@ -1034,7 +1138,9 @@ function renderBreadcrumbTrail() {
   if (window._breadcrumbLine) { amMapInstance.removeLayer(window._breadcrumbLine); window._breadcrumbLine = null; }
   if (window._bcLegend) { amMapInstance.removeControl(window._bcLegend); window._bcLegend = null; }
 
-  var bcSelect = document.getElementById('amBreadcrumbAssetSelect');
+  var myGen = _geocodeGen; // capture generation so stale callbacks are ignored
+
+  var bcSelect = document.getElementById('amMapAssetFilter');
   var bcRange = document.getElementById('amBreadcrumbDateRange');
   var bcYear = document.getElementById('amBreadcrumbYear');
   var assetId = bcSelect ? bcSelect.value : 'all';
@@ -1076,6 +1182,7 @@ function renderBreadcrumbTrail() {
   var pendingGeocodes = 0;
 
   function checkAllDone() {
+    if (myGen !== _geocodeGen) return; // user switched away — abort
     if (sourcesFetched >= sourcesTotal && pendingGeocodes === 0) {
       allPoints.sort(function(a, b) {
         return (a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : 0;
@@ -1242,6 +1349,7 @@ function renderBreadcrumbTrail() {
 
 function drawActivityPins(points) {
   if (!amMapInstance) return;
+  // Don't guard with _geocodeGen here — checkAllDone already guards before calling this
 
   // Use a PLAIN layer group (NOT marker cluster) so each pin shows its actual color
   // MarkerCluster wraps pins in green/yellow/red cluster icons that hide the pin's true color
@@ -1285,7 +1393,7 @@ function drawActivityPins(points) {
 // Patch the dashSessionLoaded handler to call loadAmColOrder + setupInfoModals + KPI fix + header cleanup
 document.addEventListener('dashSessionLoaded', function() {
   setTimeout(function() {
-    cleanDuplicateHeader();
+    amRebuildHeader();
     populateWelcomeCard();
     loadAmColOrder();
     setupInfoModals();
@@ -1294,7 +1402,7 @@ document.addEventListener('dashSessionLoaded', function() {
     updateKpiFix();
   }, 500);
   setTimeout(function() {
-    cleanDuplicateHeader();
+    amRebuildHeader();
     populateWelcomeCard();
   }, 2000);
 }, true);
