@@ -236,10 +236,10 @@ async function safeFetch(url, options) {
   var userRole = storedUser.role || storedUser.role_id || localStorage.getItem('driven_role') || sessionStorage.getItem('driven_role') || '';
   if (userRole) options.headers['x-user-role'] = userRole;
   var controller = new AbortController();
-  var timeoutId = setTimeout(function() { controller.abort(); }, 8000);
+  var timeoutId = setTimeout(function() { controller.abort(); }, 15000);
   options.signal = controller.signal;
   try { var res = await fetch(url, options); clearTimeout(timeoutId); if (res.status === 401 || res.status === 403) { console.warn('[AdminDashboard] Session warning from:', url); return null; } return res; }
-  catch (err) { clearTimeout(timeoutId); reportError('safeFetch', err); return null; }
+  catch (err) { clearTimeout(timeoutId); if (err && err.name !== 'AbortError') { reportError('safeFetch', err); } return null; }
 }
 
 function toggleSelectAllKpTasks(checked) { document.querySelectorAll('.kp-task-cb').forEach(function(cb) { cb.checked = checked; }); updateKpTaskCount(); }
