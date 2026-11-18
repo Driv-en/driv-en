@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DRIV-EN — Driver Qualification Files</title>
+  <link rel="stylesheet" href="/app/shared/dashboard.css?v=15">
+  <style>
+    .dqf-main { max-width:1100px; margin:0 auto; padding:20px; box-sizing:border-box; position:relative; z-index:1; }
+    .dqf-kpi-grid { display:grid; grid-template-columns:repeat(4, minmax(130px,1fr)); gap:12px; width:100%; margin-bottom:16px; }
+    .dqf-kpi-card { padding:16px; border-radius:8px; border:2px solid var(--success,#16a34a); background:var(--bg-card,#fff); text-align:center; cursor:pointer; transition:border-color 150ms; box-sizing:border-box; }
+    :root[data-theme="dark"] .dqf-kpi-card { background:#1e293b; }
+    .dqf-kpi-card:hover { border-color:var(--primary-blue,#2563eb); }
+    .dqf-kpi-val { font-size:28px; font-weight:800; color:var(--text,#0f172a); }
+    :root[data-theme="dark"] .dqf-kpi-val { color:#f1f5f9; }
+    .dqf-kpi-lbl { font-size:12px; font-weight:600; color:var(--text-muted,#64748b); margin-top:4px; }
+
+    .dqf-links-bar { max-width:1100px; margin:0 auto 16px auto; padding:0 20px; box-sizing:border-box; position:relative; z-index:1; }
+    .dqf-links-card { padding:16px 20px; background:var(--bg-card,#fff); border:2px solid var(--success,#16a34a); border-radius:8px; box-sizing:border-box; }
+    :root[data-theme="dark"] .dqf-links-card { background:#1e293b; }
+    .dqf-links-card h3 { margin:0 0 12px 0; font-size:14px; font-weight:700; color:var(--text,#0f172a); text-transform:uppercase; letter-spacing:0.5px; }
+    :root[data-theme="dark"] .dqf-links-card h3 { color:#f1f5f9; }
+
+    .dqf-utility-bar { width:100%; max-width:100%; margin:0; padding:6px 20px; box-sizing:border-box; display:flex; justify-content:flex-end; gap:8px; position:sticky; top:var(--header-height,58px); z-index:9998; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
+    :root[data-theme="dark"] .dqf-utility-bar { background:#334155; border-bottom-color:#475569; }
+    .dqf-utility-btn { padding:6px 14px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; border:2px solid; white-space:nowrap; }
+    .dqf-utility-dashboard { background:#2563eb; color:#fff; border-color:#1d4ed8; }
+    .dqf-utility-logout { background:#dc2626; color:#fff; border-color:#b91c1c; }
+
+    .dqf-pill-bar { max-width:1100px; margin:16px auto 0 auto; padding:0 20px; position:relative; z-index:1; display:flex; gap:12px; align-items:center; box-sizing:border-box; }
+    .dqf-pill-btn { padding:8px 16px; border-radius:20px; font-size:13px; font-weight:600; cursor:pointer; border:2px solid; background:transparent; color:var(--text,#0f172a); }
+    :root[data-theme="dark"] .dqf-pill-btn { color:#f1f5f9; }
+    .dqf-pill-purpose { border-color:#2563eb; color:#2563eb; }
+    .dqf-pill-instructions { border-color:#16a34a; color:#16a34a; }
+    .dqf-back-btn { display:inline-flex; align-items:center; padding:8px 18px; border:2px solid #2563eb; border-radius:6px; background:#2563eb; color:#fff; font-size:14px; font-weight:600; cursor:pointer; text-decoration:none; margin-left:auto; white-space:nowrap; }
+    .dqf-back-btn:hover { background:#1d4ed8; border-color:#1d4ed8; }
+
+    .dqf-table-card { border:2px solid var(--border,#e2e8f0); border-radius:8px; overflow:hidden; background:var(--bg-card,#fff); }
+    :root[data-theme="dark"] .dqf-table-card { background:#1e293b; border-color:#475569; }
+    .dqf-table-scroll { overflow-x:auto; }
+    .dqf-table { width:100%; border-collapse:collapse; font-size:14px; }
+    .dqf-table th { padding:10px 12px; text-align:left; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted,#64748b); border-bottom:2px solid var(--border,#e2e8f0); white-space:nowrap; cursor:pointer; }
+    :root[data-theme="dark"] .dqf-table th { color:#94a3b8; border-bottom-color:#475569; }
+    .dqf-table td { padding:10px 12px; border-bottom:1px solid var(--border,#e2e8f0); color:var(--text,#0f172a); }
+    :root[data-theme="dark"] .dqf-table td { color:#f1f5f9; border-bottom-color:#334155; }
+    .dqf-table tr:hover td { background:var(--bg-step,#f1f5f9); }
+    :root[data-theme="dark"] .dqf-table tr:hover td { background:#334155; }
+    .dqf-row-action { padding:4px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid #2563eb; color:#2563eb; background:transparent; }
+    .dqf-row-action:hover { background:#2563eb; color:#fff; }
+
+    .um-status-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; }
+    .um-status-current { background:#dcfce7; color:#16a34a; }
+    .um-status-30day { background:#fef9c3; color:#ca8a04; }
+    .um-status-7day { background:#fed7aa; color:#ea580c; }
+    .um-status-expired { background:#fee2e2; color:#dc2626; }
+    .um-status-none { background:#f1f5f9; color:#94a3b8; }
+    .um-status-pending { background:#e0e7ff; color:#4f46e5; }
+    :root[data-theme="dark"] .um-status-current { background:#14532d; color:#4ade80; }
+    :root[data-theme="dark"] .um-status-30day { background:#713f12; color:#facc15; }
+    :root[data-theme="dark"] .um-status-7day { background:#7c2d12; color:#fb923c; }
+    :root[data-theme="dark"] .um-status-expired { background:#7f1d1d; color:#f87171; }
+    :root[data-theme="dark"] .um-status-none { background:#334155; color:#94a3b8; }
+    :root[data-theme="dark"] .um-status-pending { background:#312e81; color:#a5b4fc; }
+
+    /* Compliance profile sections */
+    .dqf-section { margin-bottom:20px; padding:16px; border:1px solid var(--border,#e2e8f0); border-radius:8px; background:var(--bg-step,#f8fafc); }
+    :root[data-theme="dark"] .dqf-section { background:#0f172a; border-color:#334155; }
+    .dqf-section-title { font-size:14px; font-weight:700; color:var(--text,#0f172a); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px; }
+    :root[data-theme="dark"] .dqf-section-title { color:#f1f5f9; }
+    .dqf-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .dqf-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+    .dqf-field { display:flex; flex-direction:column; gap:4px; }
+    .dqf-field label { font-size:12px; font-weight:600; color:var(--text-muted,#64748b); }
+    .dqf-field input, .dqf-field select, .dqf-field textarea { padding:8px 10px; border:1px solid var(--border,#cbd5e1); border-radius:6px; font-size:14px; background:var(--bg-card,#fff); color:var(--text,#0f172a); box-sizing:border-box; }
+    :root[data-theme="dark"] .dqf-field input, :root[data-theme="dark"] .dqf-field select, :root[data-theme="dark"] .dqf-field textarea { background:#1e293b; border-color:#475569; color:#f1f5f9; }
+    .dqf-field-full { grid-column:1 / -1; }
+    .dqf-file-row { display:flex; align-items:center; gap:8px; }
+    .dqf-file-row input[type=file] { flex:1; font-size:13px; }
+    .dqf-file-placeholder { width:48px; height:48px; border-radius:6px; border:1px dashed var(--border,#cbd5e1); display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--text-muted,#94a3b8); }
+
+    /* Asset cards */
+    .dqf-asset-card { border:2px solid var(--border,#e2e8f0); border-radius:8px; padding:14px; margin-bottom:12px; background:var(--bg-card,#fff); position:relative; }
+    :root[data-theme="dark"] .dqf-asset-card { background:#1e293b; border-color:#475569; }
+    .dqf-asset-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .dqf-asset-card-title { font-weight:600; font-size:14px; color:var(--text,#0f172a); }
+    :root[data-theme="dark"] .dqf-asset-card-title { color:#f1f5f9; }
+    .dqf-asset-remove { background:#fee2e2; color:#dc2626; border:1px solid #fecaca; border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600; cursor:pointer; }
+    :root[data-theme="dark"] .dqf-asset-remove { background:#7f1d1d; color:#f87171; border-color:#991b1b; }
+    .dqf-asset-vehicle-fields { display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border,#cbd5e1); }
+    .dqf-asset-vehicle-fields.show { display:block; }
+
+    .dqf-toggle-row { display:flex; align-items:center; gap:12px; padding:12px; background:var(--bg-step,#f1f5f9); border-radius:8px; margin-bottom:12px; }
+    :root[data-theme="dark"] .dqf-toggle-row { background:#334155; }
+    .dqf-toggle-row label { font-weight:600; font-size:14px; color:var(--text,#0f172a); }
+    :root[data-theme="dark"] .dqf-toggle-row label { color:#f1f5f9; }
+    .dqf-toggle { position:relative; width:48px; height:26px; }
+    .dqf-toggle input { opacity:0; width:0; height:0; }
+    .dqf-toggle-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#cbd5e1; border-radius:26px; transition:200ms; }
+    .dqf-toggle-slider:before { content:""; position:absolute; height:20px; width:20px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:200ms; }
+    .dqf-toggle input:checked + .dqf-toggle-slider { background:#16a34a; }
+    .dqf-toggle input:checked + .dqf-toggle-slider:before { transform:translateX(22px); }
+
+    .dqf-save-bar { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; padding-top:12px; border-top:2px solid var(--border,#e2e8f0); }
+    .dqf-btn { padding:10px 20px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; border:2px solid; }
+    .dqf-btn-save { background:#16a34a; color:#fff; border-color:#15803d; }
+    .dqf-btn-later { background:transparent; color:var(--text-muted,#64748b); border-color:var(--border,#cbd5e1); }
+
+    .dqf-reminder { max-width:1100px; margin:12px auto 0 auto; padding:12px 20px; background:#fef9c3; border:2px solid #facc15; border-radius:8px; display:flex; align-items:center; gap:10px; box-sizing:border-box; }
+    :root[data-theme="dark"] .dqf-reminder { background:#713f12; border-color:#a16207; }
+    .dqf-reminder-icon { font-size:20px; }
+    .dqf-reminder-text { font-size:14px; font-weight:600; color:#854d0e; flex:1; }
+    :root[data-theme="dark"] .dqf-reminder-text { color:#facc15; }
+
+    .dqf-tab-content { display:none; }
+    .dqf-tab-content.active { display:block; }
+
+    /* Modal */
+    .dqf-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:10000; }
+    .dqf-modal.active { display:flex; justify-content:center; align-items:flex-start; }
+    .dqf-modal-overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10001; }
+    .dqf-modal-content { position:relative; z-index:10002; background:var(--bg-card,#fff); border-radius:10px; box-shadow:0 8px 32px rgba(0,0,0,0.3); width:92%; max-width:600px; max-height:85vh; overflow-y:auto; margin:40px 0; padding:24px; }
+    :root[data-theme="dark"] .dqf-modal-content { background:#1e293b; }
+    .dqf-modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:2px solid var(--border,#e2e8f0); }
+    .dqf-modal-title { font-size:18px; font-weight:700; color:var(--text,#0f172a); }
+    :root[data-theme="dark"] .dqf-modal-title { color:#f1f5f9; }
+    .dqf-modal-close { background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-muted,#64748b); }
+
+    .dqf-toast { position:fixed; bottom:20px; right:20px; padding:12px 20px; border-radius:8px; font-size:14px; font-weight:600; z-index:99999; opacity:0; transition:opacity 300ms; pointer-events:none; }
+    .dqf-toast.show { opacity:1; }
+    .dqf-toast-success { background:#16a34a; color:#fff; }
+
+    @media (max-width: 768px) {
+      .dqf-kpi-grid { grid-template-columns:repeat(2,1fr); }
+      .dqf-grid, .dqf-grid-3 { grid-template-columns:1fr; }
+      .dqf-utility-bar { padding:0 12px; }
+    }
+  </style>
+</head>
+<body data-page-title="Driver Qualification Files">
+  <div id="dashHeader"></div>
+
+  <!-- Utility Bar -->
+  <div class="dqf-utility-bar">
+    <a class="dqf-utility-btn dqf-utility-dashboard" href="/app/dashboard/admin.html">&#128202; Dashboard</a>
+    <a class="dqf-utility-btn dqf-utility-logout" href="#" onclick="dashLogout(); return false;">&#128682; Logout</a>
+  </div>
+
+  <!-- Reminder Banner -->
+  <div class="dqf-reminder" id="dqfReminder" style="display:none;">
+    <span class="dqf-reminder-icon">&#9888;&#65039;</span>
+    <span class="dqf-reminder-text" id="dqfReminderText"></span>
+  </div>
+
+  <!-- Pill Bar -->
+  <div class="dqf-pill-bar">
+    <button class="dqf-pill-btn dqf-pill-purpose" id="btnPurpose">&#9682; Purpose</button>
+    <button class="dqf-pill-btn dqf-pill-instructions" id="btnInstructions">&#9776; Instructions</button>
+    <button class="dqf-back-btn" id="dqfBackBtn" onclick="dqfBackToList()" style="display:none;">&#8592; Back to Driver List</button>
+  </div>
+
+  <div class="dqf-main">
+    <!-- Overview Tab -->
+    <div class="dqf-tab-content active" id="dqf-tab-overview">
+      <div class="dqf-kpi-grid">
+        <div class="dqf-kpi-card" onclick="dqfSwitchTab('list')">
+          <div class="dqf-kpi-val" id="kpiTotal">0</div>
+          <div class="dqf-kpi-lbl">Total Drivers</div>
+        </div>
+        <div class="dqf-kpi-card" onclick="dqfSwitchTab('list')">
+          <div class="dqf-kpi-val" id="kpiPending">0</div>
+          <div class="dqf-kpi-lbl">Pending</div>
+        </div>
+        <div class="dqf-kpi-card" onclick="dqfSwitchTab('list')">
+          <div class="dqf-kpi-val" id="kpiExpired">0</div>
+          <div class="dqf-kpi-lbl">Expired</div>
+        </div>
+        <div class="dqf-kpi-card" onclick="dqfSwitchTab('list')">
+          <div class="dqf-kpi-val" id="kpiCurrent">0</div>
+          <div class="dqf-kpi-lbl">Current</div>
+        </div>
+      </div>
+      <div class="dqf-links-bar" style="max-width:1100px;margin:0 auto 16px;padding:0;">
+        <div class="dqf-links-card">
+          <h3>Driver Qualification Files</h3>
+          <p style="font-size:13px;color:var(--text-muted,#64748b);line-height:1.5;margin:0;">Click <strong>Driver List</strong> to view all commercial drivers and their compliance status. Click any driver to open their full qualification file — DL photos, CDL, driving record, DOT medical card, background check, drug test, and employee-owned assets with insurance tracking.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Driver List Tab -->
+    <div class="dqf-tab-content" id="dqf-tab-list">
+      <div class="dqf-table-card">
+        <div class="dqf-table-scroll">
+          <table class="dqf-table" id="dqfDriverTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>CDL Class</th>
+                <th>DL Status</th>
+                <th>Med Card</th>
+                <th>Drug Test</th>
+                <th>Background</th>
+                <th>Auto Policy</th>
+                <th>File Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="dqfDriverBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Driver Profile Tab -->
+    <div class="dqf-tab-content" id="dqf-tab-profile">
+      <div id="dqfProfileContent"></div>
+    </div>
+  </div>
+
+  <!-- Purpose/Instructions Modal -->
+  <div class="dqf-modal" id="dqfModal">
+    <div class="dqf-modal-overlay" onclick="dqfCloseModal()"></div>
+    <div class="dqf-modal-content">
+      <div class="dqf-modal-header">
+        <div class="dqf-modal-title" id="dqfModalTitle">Purpose</div>
+        <button class="dqf-modal-close" onclick="dqfCloseModal()">&times;</button>
+      </div>
+      <div id="dqfModalBody"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="dqf-toast dqf-toast-success" id="dqfToast"></div>
+
+  <!-- Shared Scripts -->
+  <script src="/app/auth/auth-check.js?v=20"></script>
+  <script src="/app/shared/dashboard-common.js?v=21"></script>
+  <script src="/app/shared/units.js?v=20"></script>
+  <script src="/app/shared/voice.js?v=20"></script>
+  <script src="/app/dashboard/driver-qualification-files.js?v=1"></script>
+</body>
+</html>
