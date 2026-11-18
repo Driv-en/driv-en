@@ -627,103 +627,101 @@ function clearAddForm() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// HEADER CLEANUP — remove duplicate header rows (row2/row3/utility)
-// Uses MutationObserver with debounce + disconnect/reconnect to catch stale SW injections
+// HEADER REBUILD — copy User Management's proven approach
+// (clear + rebuild from scratch, observer only fires on actual duplicates)
 // ═══════════════════════════════════════════════════════════════
-var _amHeaderCleaning = false;
-var _amHeaderObserver = null;
-var _amHeaderDebounce = null;
-
-function amRebuildHeader() {
-  if (_amHeaderCleaning) return;
-  _amHeaderCleaning = true;
-
-  // Disconnect observer while we modify the header
-  if (_amHeaderObserver) _amHeaderObserver.disconnect();
-
-  try {
-    var header = document.getElementById('dashHeader');
-    if (!header) return;
-
-    // The correct structure is: #dashHeader > .dash-header > .dash-header-row1
-    var dashHeaderDiv = header.querySelector('.dash-header') || header;
-    var row1 = dashHeaderDiv.querySelector('.dash-header-row1');
-    if (row1) {
-      var siblings = dashHeaderDiv.children;
-      for (var i = siblings.length - 1; i >= 0; i--) {
-        if (siblings[i] !== row1) {
-          console.log('[AM-Additions] Removing duplicate header element:', siblings[i].tagName, siblings[i].className || '(no class)');
-          siblings[i].remove();
-        }
-      }
-    }
-    // Also remove any extra children of #dashHeader that aren't .dash-header
-    var headerChildren = header.children;
-    for (var i = headerChildren.length - 1; i >= 0; i--) {
-      if (headerChildren[i] !== dashHeaderDiv) {
-        console.log('[AM-Additions] Removing extra header child:', headerChildren[i].tagName, headerChildren[i].className || '(no class)');
-        headerChildren[i].remove();
-      }
-    }
-    // Remove duplicate #dashPageTitle elements
-    var allTitles = document.querySelectorAll('#dashPageTitle');
-    if (allTitles.length > 1) {
-      for (var i = 1; i < allTitles.length; i++) allTitles[i].remove();
-    }
-    // Remove any h1 in the header that isn't #dashPageTitle (catches stale titles without IDs)
-    var allH1s = header.querySelectorAll('h1');
-    for (var i = 0; i < allH1s.length; i++) {
-      if (allH1s[i].id !== 'dashPageTitle') {
-        console.log('[AM-Additions] Removing stray h1:', allH1s[i].textContent.substring(0, 40));
-        allH1s[i].remove();
-      }
-    }
-    // Remove any direct child of #dashHeader that isn't .dash-header (catches bare divs/h1s)
-    var directChildren = header.children;
-    for (var i = directChildren.length - 1; i >= 0; i--) {
-      if (!directChildren[i].classList || !directChildren[i].classList.contains('dash-header')) {
-        console.log('[AM-Additions] Removing non-.dash-header child:', directChildren[i].tagName, directChildren[i].className || '(no class)');
-        directChildren[i].remove();
-      }
-    }
-    // Set the page title
-    var titleEl = document.getElementById('dashPageTitle');
-    if (titleEl) {
-      var title = document.body.getAttribute('data-page-title') || 'Asset Management';
-      titleEl.textContent = title;
-    }
-  } catch(e) {
-    console.error('[AM-Additions] Header cleanup error:', e);
-  }
-
-  // Reconnect observer after cleanup
-  if (_amHeaderObserver && header) {
-    setTimeout(function() {
-      _amHeaderObserver.observe(header, { childList: true, subtree: true });
-      _amHeaderCleaning = false;
-    }, 100);
-  } else {
-    _amHeaderCleaning = false;
-  }
-}
-
-// Set up MutationObserver with debounce
-document.addEventListener('DOMContentLoaded', function() {
+function rebuildHeader() {
   var header = document.getElementById('dashHeader');
   if (!header) return;
 
-  _amHeaderObserver = new MutationObserver(function() {
-    if (_amHeaderDebounce) clearTimeout(_amHeaderDebounce);
-    _amHeaderDebounce = setTimeout(amRebuildHeader, 200);
+  var title = document.body.getAttribute('data-page-title') || 'Asset Management';
+
+  // Grab the customer logo area if it exists (preserve loaded logo)
+  var logoArea = header.querySelector('#dashCustomerLogoArea');
+  var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img.dash-driven-logo');
+
+  // Nuke everything
+  header.innerHTML = '';
+
+  // Rebuild single-row header
+  var dashHeader = document.createElement('div');
+  dashHeader.className = 'dash-header';
+
+  var row1 = document.createElement('div');
+  row1.className = 'dash-header-row1';
+
+  // Left: customer logo
+  var left = document.createElement('div');
+  left.className = 'dash-header-logo-left';
+  if (logoArea) {
+    left.appendChild(logoArea);
+  } else {
+    var ph = document.createElement('div');
+    ph.id = 'dashCustomerLogoArea';
+    ph.innerHTML = '<div class="dash-customer-logo-placeholder">No logo uploaded</div>';
+    left.appendChild(ph);
+  }
+  row1.appendChild(left);
+
+  // Center: ONE page title only
+  var h1 = document.createElement('h1');
+  h1.id = 'dashPageTitle';
+  h1.className = 'dash-header-title';
+  h1.textContent = title;
+  row1.appendChild(h1);
+
+  // Right: DRIV-EN logo
+  var right = document.createElement('div');
+  right.className = 'dash-header-logo-right';
+  if (drivenLogo) {
+    right.appendChild(drivenLogo);
+  } else {
+    var img = document.createElement('img');
+    img.src = '/assets/logo.png?v=2026';
+    img.className = 'dash-driven-logo';
+    img.alt = 'DRIV-EN Logo';
+    right.appendChild(img);
+  }
+  row1.appendChild(right);
+
+  dashHeader.appendChild(row1);
+  header.appendChild(dashHeader);
+}
+
+function startHeaderObserver() {
+  var container = document.getElementById('dashHeader');
+  if (!container) return;
+
+  var observer = new MutationObserver(function(mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var added = mutations[i].addedNodes;
+      for (var j = 0; j < added.length; j++) {
+        var node = added[j];
+        if (node.nodeType === 1) {
+          // Check for stale multi-row header injection
+          var h1s = container.querySelectorAll('h1');
+          var rows = container.querySelectorAll('.dash-header-row2, .dash-header-row3');
+          if (h1s.length > 1 || rows.length > 0) {
+            rebuildHeader();
+            return;
+          }
+        }
+      }
+    }
   });
 
-  _amHeaderObserver.observe(header, { childList: true, subtree: true });
+  observer.observe(container, { childList: true, subtree: true });
+}
 
-  // Also run on timers as backup
-  setTimeout(amRebuildHeader, 500);
-  setTimeout(amRebuildHeader, 1500);
-  setTimeout(amRebuildHeader, 3000);
-});
+function scheduleHeaderRebuilds() {
+  rebuildHeader();
+  setTimeout(rebuildHeader, 50);
+  setTimeout(rebuildHeader, 200);
+  setTimeout(rebuildHeader, 500);
+  setTimeout(rebuildHeader, 1000);
+  setTimeout(rebuildHeader, 2000);
+  setTimeout(rebuildHeader, 3000);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // ── Map: Breadcrumb Trail with asset filter ──
@@ -1404,7 +1402,7 @@ function drawActivityPins(points) {
 // Patch the dashSessionLoaded handler to call loadAmColOrder + setupInfoModals + KPI fix + header cleanup
 document.addEventListener('dashSessionLoaded', function() {
   setTimeout(function() {
-    amRebuildHeader();
+    rebuildHeader();
     populateWelcomeCard();
     loadAmColOrder();
     setupInfoModals();
@@ -1413,7 +1411,7 @@ document.addEventListener('dashSessionLoaded', function() {
     updateKpiFix();
   }, 500);
   setTimeout(function() {
-    amRebuildHeader();
+    rebuildHeader();
     populateWelcomeCard();
   }, 2000);
 }, true);
@@ -1427,13 +1425,21 @@ console.log('[AM-Additions] Fully loaded — all patches and fixes applied');
 function formatDateTime(dateStr) {
   if (!dateStr) return '';
   try {
+    // Check if the date string has a time component
+    // Date-only strings like "2026-01-15" or "01/15/2026" have no time
+    var hasTime = dateStr.indexOf('T') !== -1 || /\d{1,2}:\d{2}/.test(dateStr);
+
     var d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr; // return as-is if can't parse
 
-    // Format: MM/DD/YYYY, HH:MM:SS AM/PM (in user's local timezone)
+    // Format: MM/DD/YYYY (date always), plus time if available
     var month = String(d.getMonth() + 1).padStart(2, '0');
     var day = String(d.getDate()).padStart(2, '0');
     var year = d.getFullYear();
+
+    if (!hasTime) {
+      return month + '/' + day + '/' + year + ', Unknown Time';
+    }
 
     var hours = d.getHours();
     var ampm = hours >= 12 ? 'PM' : 'AM';
@@ -1517,3 +1523,9 @@ function populateWelcomeCard() {
 
   console.log('[AM-Additions] Welcome card populated:', firstName, orgName);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// INITIALIZATION — header rebuild + observer
+// ═══════════════════════════════════════════════════════════════
+scheduleHeaderRebuilds();
+startHeaderObserver();
