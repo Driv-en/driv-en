@@ -52,6 +52,10 @@ var MODAL_CONTENT_MAP = {
   activity: {
     purpose: 'The <strong>Activity Log Tab</strong> provides a complete audit trail of all actions performed within the system. It records who did what, when, and from which IP address, supporting compliance and security investigations. The search bar supports voice dictation via the microphone icon.',
     instructions: '<ol><li><strong>Search with Voice:</strong> Use the search bar to filter activity logs by user full name, email, module, or action details. Click the <strong>microphone icon</strong> (&#127908;) next to the search field to speak your search query instead of typing — the browser\'s Web Speech API transcribes your voice into the search box. Click the mic again to stop dictation.</li><li><strong>Sort:</strong> Click any column header to sort by that column. Click again to reverse direction. The default sort is by Timestamp (newest first).</li><li><strong>Review Entries:</strong> Each row shows the timestamp, full name, module/page, action details, and IP address.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print Activity Log</strong> to select specific records or print all visible rows.</li><li><strong>Column Resize:</strong> Drag the edge of any column header to adjust its width.</li><li><strong>Personalization:</strong> The Light/Dark toggle, Units of Measure, and Language selectors remain available in the welcome bar above.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Overview</strong> in the pill bar (top-right, next to Purpose and Instructions) to return to the Overview landing page.</li></ol>'
+  },
+  import: {
+    purpose: 'The <strong>Import Employees Tab</strong> lets you bring your entire employee roster into DRIV-EN from your payroll or HR program instead of adding each person manually. It supports ADP, QuickBooks (Online &amp; Desktop Enterprise), Gusto, Paychex, Paycom, Paycor, Sage, BambooHR, Rippling, and any generic CSV file. The system auto-detects column headers, maps them to DRIV-EN fields, shows a preview before committing, and tracks every import so you can undo it later.',
+    instructions: '<ol><li><strong>Export from your payroll/HR program:</strong> In ADP, QuickBooks, Gusto, Paychex, or whichever program you use, export your employee list as a CSV file and save it to your computer.</li><li><strong>Download a blank template (optional):</strong> If you prefer to start fresh, click <strong>⬇ Download Blank Template</strong> to get a CSV with the correct headers and one sample row. Fill it in and save.</li><li><strong>Select your program:</strong> Choose your payroll/HR program from the dropdown, or leave it on <strong>🔍 Auto-Detect</strong> (recommended) and the system will identify the column format automatically.</li><li><strong>Choose duplicate handling:</strong> Select <strong>Skip existing employees</strong> to leave matching emails alone, or <strong>Update existing employees</strong> to overwrite their fields with the CSV values.</li><li><strong>Choose the CSV file:</strong> Click the file input and select your exported CSV.</li><li><strong>Preview Import:</strong> Click the <strong>Preview Import</strong> button. The system parses the file and shows a column mapping grid and a row-by-row preview.</li><li><strong>Review the column mapping:</strong> The grid auto-fills each CSV column to the matching DRIV-EN field. If a column was mapped wrong, click the dropdown and pick the correct field. Required fields are <strong>Full Name</strong> and <strong>Email</strong>.</li><li><strong>Review the preview rows:</strong> Green rows are ready to import. Red rows will be skipped — the reason (missing email, duplicate, etc.) is shown. Fix the CSV and re-preview if needed.</li><li><strong>Import:</strong> Click the <strong>Import</strong> button to commit the rows to the database. A confirmation summary shows how many were added, updated, or skipped.</li><li><strong>Undo (if needed):</strong> Scroll down to <strong>Import History</strong>, find the batch, and click <strong>Undo</strong> to roll back every row from that import.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Overview</strong> in the pill bar (top-right, next to Purpose and Instructions) to return to the Overview landing page.</li></ol>'
   }
 };
 
@@ -71,7 +75,8 @@ function getContextTitle(key) {
     employees: 'Employees',
     roles: 'Roles & Permissions',
     users: 'System Users',
-    activity: 'Activity Log'
+    activity: 'Activity Log',
+    import: 'Import Employees'
   };
   return labels[key] || 'Dashboard';
 }
@@ -1261,6 +1266,17 @@ async function submitSaveEmployee() {
   var dlState = document.getElementById('addEmpDlState').value.trim();
   var isCD = document.getElementById('addEmpCommercialDriver') ? document.getElementById('addEmpCommercialDriver').value : 'no';
 
+  // Upload DL photos if selected (uploads to R2 via API)
+  var dlFrontKey = '', dlBackKey = '';
+  var dlFrontFile = document.getElementById('addEmpDlFrontPhoto');
+  var dlBackFile = document.getElementById('addEmpDlBackPhoto');
+  if (dlFrontFile && dlFrontFile.files && dlFrontFile.files[0]) {
+    try { dlFrontKey = await uploadEmployeeDoc(dlFrontFile.files[0], 'dl_front', id || 'new'); } catch(e) { console.warn('DL front upload failed:', e); }
+  }
+  if (dlBackFile && dlBackFile.files && dlBackFile.files[0]) {
+    try { dlBackKey = await uploadEmployeeDoc(dlBackFile.files[0], 'dl_back', id || 'new'); } catch(e) { console.warn('DL back upload failed:', e); }
+  }
+
   if (!fn || !ln) {
     showToast('First and Last name are required.', 'error');
     return;
@@ -1272,7 +1288,9 @@ async function submitSaveEmployee() {
     first_name: fn, middle_name: mn, last_name: ln, suffix: suffix, full_name: fullStr, name: fullStr,
     email: em, employee_number: empNum, role: role, phone: phone, dob: dob, address: addr,
     city: city, state: state, zip: zip, status: status, drivers_license: dl, dl_state: dlState,
-    is_commercial_driver: isCD
+    is_commercial_driver: isCD,
+    dl_photo_front: dlFrontKey || undefined,
+    dl_photo_back: dlBackKey || undefined
   };
 
   try {
@@ -1916,4 +1934,23 @@ function checkStep2Reminders() {
   } else if (banner) {
     banner.style.display = 'none';
   }
+}
+
+// Upload employee document to R2 via API
+async function uploadEmployeeDoc(file, docType, empId) {
+  var formData = new FormData();
+  formData.append('file', file);
+  formData.append('doc_type', docType);
+  formData.append('employee_id', empId);
+  formData.append('org_id', currentUserOrgId);
+  var resp = await fetch('/api/employee-documents/upload', { method: 'POST', body: formData });
+  if (!resp.ok) throw new Error('Upload failed');
+  var data = await resp.json();
+  return data.key || data.r2_key || data.result?.key || '';
+}
+
+// View employee document from R2
+function viewEmployeeDoc(docKey) {
+  if (!docKey) { showToast('No document available.', 'error'); return; }
+  window.open('/api/employee-documents/' + encodeURIComponent(docKey), '_blank');
 }
