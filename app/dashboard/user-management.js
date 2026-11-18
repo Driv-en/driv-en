@@ -381,7 +381,8 @@ function normalizeEmployee(r) {
     fullName: fullName !== '\u2014' ? fullName : '\u2014',
     name: fullName,
     email: parseVal(r.email),
-    role: normalizeRoleName(r.role),
+    role: normalizeRoleName(r.role || r.role_name || r.role_id),
+    roleId: parseVal(r.role_id || r.roleId),
     status: parseVal(r.status || 'Active'),
     phone: parseVal(r.phone),
     dob: parseVal(r.dob),
@@ -690,6 +691,28 @@ async function loadEmployees() {
   renderEmpTable();
 }
 
+function populateRoleSelect() {
+  var sel = document.getElementById('addEmpRole');
+  if (!sel) return;
+  var currentVal = sel.value;
+  sel.innerHTML = '';
+  if (allOrgRoles && allOrgRoles.length > 0) {
+    allOrgRoles.forEach(function(r) {
+      var opt = document.createElement('option');
+      opt.value = r.id || r.name;
+      opt.textContent = r.name || r.id;
+      sel.appendChild(opt);
+    });
+  } else {
+    sel.innerHTML = '<option value="Employee">Employee</option><option value="Fleet Manager">Fleet Manager</option><option value="Admin">Admin</option>';
+  }
+  if (currentVal) {
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === currentVal) { sel.value = currentVal; break; }
+    }
+  }
+}
+
 async function loadOrgRoles() {
   try {
     var resp = await fetch('/api/roles?org_id=' + encodeURIComponent(currentUserOrgId));
@@ -705,6 +728,7 @@ async function loadOrgRoles() {
     ];
   }
   renderRolesTable();
+  populateRoleSelect();
   buildMultiSelectPanels();
 }
 
@@ -929,6 +953,7 @@ function renderRolesTable() {
   var sorted = sortArray(allOrgRoles, sortState.roles.key, sortState.roles.dir);
   sorted.forEach(function(r) {
     var tr = document.createElement('tr');
+    tr.setAttribute('data-role-id', r.id || '');
     var isSystem = r.is_system && r.is_system !== 0 && r.is_system !== '0' && r.is_system !== false;
     var actionsHtml;
     if (isSystem) {
@@ -940,7 +965,13 @@ function renderRolesTable() {
         '</div>';
     }
     var activeCount = allEmployees.filter(function(e) {
-      return e.status === 'Active' && (e.role === r.name || (e.role || '').toLowerCase() === (r.name || '').toLowerCase());
+      if (e.status !== 'Active') return false;
+      var empRole = String(e.role || '').toLowerCase();
+      var empRoleId = String(e.roleId || e.role_id || '').toLowerCase();
+      return empRole === String(r.name || '').toLowerCase() ||
+             empRole === String(r.id || '').toLowerCase() ||
+             empRoleId === String(r.id || '').toLowerCase() ||
+             empRoleId === String(r.name || '').toLowerCase();
     }).length;
     var countBadge = '<span style="font-size:11px; padding:2px 8px; border-radius:10px; margin-left:8px; ' +
       (activeCount > 0 ? 'background:rgba(34,197,94,0.15); color:#16a34a;' : 'background:rgba(220,38,38,0.15); color:#dc2626;') +
@@ -1337,7 +1368,16 @@ function openEmpEditModal(id) {
   document.getElementById('addEmpSuffix').value = emp.suffix !== '\u2014' ? emp.suffix : '';
   document.getElementById('addEmpEmail').value = emp.email !== '\u2014' ? emp.email : '';
   document.getElementById('addEmpNum').value = emp.employeeNumber !== '\u2014' ? emp.employeeNumber : '';
-  document.getElementById('addEmpRole').value = emp.role;
+  var roleSel = document.getElementById('addEmpRole');
+  if (roleSel) {
+    var matched = false;
+    for (var i = 0; i < roleSel.options.length; i++) {
+      if (roleSel.options[i].value === (emp.roleId || '') || roleSel.options[i].value === (emp.role || '') || roleSel.options[i].text === (emp.role || '')) {
+        roleSel.selectedIndex = i; matched = true; break;
+      }
+    }
+    if (!matched) roleSel.value = emp.role || '';
+  }
   document.getElementById('addEmpPhone').value = emp.phone !== '\u2014' ? emp.phone : '';
   document.getElementById('addEmpDob').value = emp.dob !== '\u2014' ? emp.dob : '';
   document.getElementById('addEmpAddress').value = emp.address !== '\u2014' ? emp.address : '';
