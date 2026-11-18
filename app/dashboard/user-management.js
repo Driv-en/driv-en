@@ -42,8 +42,8 @@ var MODAL_CONTENT_MAP = {
     instructions: '<ol><li><strong>Search with Voice:</strong> Use the search bar to find employees by name, email, employee number, role, phone, or state. Click the <strong>microphone icon</strong> (&#127908;) next to the search field to speak your search query instead of typing — the browser\'s Web Speech API transcribes your voice into the search box. Click the mic again to stop dictation.</li><li><strong>Filter:</strong> Use the Statuses and Roles dropdowns to filter by employment status or role.</li><li><strong>Add Employee with Voice:</strong> Click <strong>+ Add Employee</strong> to open the form modal. Fill in all required fields (First Name, Last Name) and optional fields. Each text field has a <strong>microphone icon</strong> (&#127908;) — click it to dictate that field\'s value by voice instead of typing. Click <strong>Save Employee</strong> when done.</li><li><strong>Edit Employee:</strong> Click the <strong>Edit</strong> button on any row to modify an existing employee record. Voice dictation is available on all form fields.</li><li><strong>View Details:</strong> Click <strong>View</strong> to see a read-only detail modal for any employee.</li><li><strong>Columns:</strong> Click <strong>Columns (Show / Hide)</strong> to toggle visibility of individual columns. Drag column headers to reorder. Drag column edges to resize.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print</strong> to select specific records or print all visible rows.</li><li><strong>Personalization:</strong> The Light/Dark toggle, Units of Measure, and Language selectors remain available in the welcome bar above.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Overview</strong> in the pill bar (top-right, next to Purpose and Instructions) to return to the Overview landing page.</li></ol>'
   },
   roles: {
-    purpose: 'The <strong>Roles &amp; Permissions Tab</strong> displays all roles defined for your organization. This includes system roles (locked) and custom roles created during onboarding or by administrators.',
-    instructions: '<ol><li><strong>Review Roles:</strong> The table shows each role name, description, and whether it is a system-defined role.</li><li><strong>Sort:</strong> Click any column header to sort the table by that column. Click again to reverse the sort direction.</li><li><strong>Print:</strong> Click <strong>Print Roles &amp; Permissions</strong> to print the full roles table.</li><li><strong>Column Resize:</strong> Drag the edge of any column header to adjust its width.</li><li><strong>Personalization:</strong> The Light/Dark toggle, Units of Measure, and Language selectors remain available in the welcome bar above.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Overview</strong> in the pill bar (top-right, next to Purpose and Instructions) to return to the Overview landing page.</li></ol>'
+    purpose: 'The <strong>Roles &amp; Permissions Tab</strong> displays all roles defined for your organization. This includes system roles (locked, cannot be edited or deleted) and custom roles that you can create, edit, and delete. Use this tab to manage the roles that control what employees and users can do across the platform.',
+    instructions: '<ol><li><strong>Add a New Role:</strong> Click <strong>+ Add Role</strong> to open the form. Enter a role name (required) and an optional description, then click <strong>Save Role</strong>. The new role appears in the table immediately.</li><li><strong>Edit a Role:</strong> Click <strong>Edit</strong> on any non-system role row to open the form with the current values. Change the name or description and click <strong>Save Role</strong>.</li><li><strong>Delete a Role:</strong> Click <strong>Delete</strong> on a non-system role and confirm the prompt. System roles show "System role" instead of action buttons and cannot be modified.</li><li><strong>Sort:</strong> Click any column header to sort the table by that column. Click again to reverse the sort direction.</li><li><strong>Print:</strong> Click <strong>Print Roles &amp; Permissions</strong> to print the full roles table.</li><li><strong>Column Resize:</strong> Drag the edge of any column header to adjust its width.</li><li><strong>Personalization:</strong> The Light/Dark toggle, Units of Measure, and Language selectors remain available in the welcome bar above.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Overview</strong> in the pill bar (top-right, next to Purpose and Instructions) to return to the Overview landing page.</li></ol>'
   },
   users: {
     purpose: 'The <strong>System Users Tab</strong> manages all user accounts that have login access to the DRIV-EN platform. This includes their authentication status, role assignments, and security settings. The search bar supports voice dictation via the microphone icon.',
@@ -926,12 +926,90 @@ function renderRolesTable() {
   var sorted = sortArray(allOrgRoles, sortState.roles.key, sortState.roles.dir);
   sorted.forEach(function(r) {
     var tr = document.createElement('tr');
+    var isSystem = r.is_system && r.is_system !== 0 && r.is_system !== '0' && r.is_system !== false;
+    var actionsHtml;
+    if (isSystem) {
+      actionsHtml = '<span style="font-size:12px; color:var(--text-muted);">System role</span>';
+    } else {
+      actionsHtml = '<div class="um-actions-wrap">' +
+        '<button class="um-table-btn" onclick="editRole(\'' + escapeHtml(String(r.id || '')) + '\')">Edit</button>' +
+        '<button class="um-table-btn" style="border-color:#dc2626; color:#dc2626;" onclick="deleteRole(\'' + escapeHtml(String(r.id || '')) + '\')">Delete</button>' +
+        '</div>';
+    }
     tr.innerHTML = '<td><strong>' + escapeHtml(r.name) + '</strong></td>' +
                    '<td>' + escapeHtml(r.description || '\u2014') + '</td>' +
-                   '<td>' + (r.is_system ? 'Yes' : 'No') + '</td>';
+                   '<td>' + (isSystem ? 'Yes' : 'No') + '</td>' +
+                   '<td class="am-actions">' + actionsHtml + '</td>';
     container.appendChild(tr);
   });
   updateSortIcons('roles');
+}
+
+function openAddRoleModal() {
+  document.getElementById('roleModalTitle').textContent = 'Add New Role';
+  document.getElementById('editRoleId').value = '';
+  document.getElementById('addRoleName').value = '';
+  document.getElementById('addRoleDesc').value = '';
+  document.getElementById('umAddRoleModal').classList.add('active');
+}
+
+function editRole(roleId) {
+  var role = allOrgRoles.find(function(r) { return String(r.id) === String(roleId); });
+  if (!role) { showToast('Role not found', 'error'); return; }
+  document.getElementById('roleModalTitle').textContent = 'Edit Role';
+  document.getElementById('editRoleId').value = roleId;
+  document.getElementById('addRoleName').value = role.name || '';
+  document.getElementById('addRoleDesc').value = role.description || '';
+  document.getElementById('umAddRoleModal').classList.add('active');
+}
+
+async function submitSaveRole() {
+  var roleId = document.getElementById('editRoleId').value;
+  var name = document.getElementById('addRoleName').value.trim();
+  var desc = document.getElementById('addRoleDesc').value.trim();
+  if (!name) { showToast('Role name is required', 'error'); return; }
+  try {
+    var url, method, body;
+    if (roleId) {
+      url = '/api/roles/' + encodeURIComponent(roleId);
+      method = 'PUT';
+      body = { name: name, description: desc };
+    } else {
+      url = '/api/roles';
+      method = 'POST';
+      body = { name: name, description: desc, is_system: 0 };
+    }
+    var resp = await fetch(url, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) throw new Error('Save failed (' + resp.status + ')');
+    closeModal('umAddRoleModal');
+    showToast(roleId ? 'Role updated successfully' : 'Role added successfully', 'success');
+    await loadOrgRoles();
+    updateKpi();
+  } catch (e) {
+    showToast('Failed to save role: ' + e.message, 'error');
+  }
+}
+
+async function deleteRole(roleId) {
+  var role = allOrgRoles.find(function(r) { return String(r.id) === String(roleId); });
+  if (!role) return;
+  if (role.is_system && role.is_system !== 0 && role.is_system !== '0' && role.is_system !== false) {
+    showToast('System roles cannot be deleted', 'error'); return;
+  }
+  if (!confirm('Delete role "' + (role.name || '') + '"? This cannot be undone.')) return;
+  try {
+    var resp = await fetch('/api/roles/' + encodeURIComponent(roleId), { method: 'DELETE' });
+    if (!resp.ok) throw new Error('Delete failed (' + resp.status + ')');
+    showToast('Role deleted', 'success');
+    await loadOrgRoles();
+    updateKpi();
+  } catch (e) {
+    showToast('Failed to delete role: ' + e.message, 'error');
+  }
 }
 
 function renderActivityLogTable() {
