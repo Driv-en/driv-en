@@ -132,8 +132,22 @@ var helpContent = {
   'addasset-instructions': { title: 'Quick Add Asset — Instructions', body: '<ol><li><strong>VIN Decode:</strong> Enter the 17-character VIN and click "Decode VIN". Specs auto-populate.</li><li><strong>Verify Decoded Data:</strong> Review all extracted information. Confirm make, model, year, fuel type, engine, and other specs are correct before proceeding.</li><li><strong>Company Fields:</strong> Fill in Asset Number, Category, Division, Assigned Operator, Status, Project, Location.</li><li><strong>DOT:</strong> Mark whether the vehicle is DOT-regulated.</li><li><strong>Save:</strong> Click "Add Asset".</li></ol>' },
   'bulkvin': { title: 'Bulk Add by VIN — Purpose', body: 'Add multiple company-owned assets at once by pasting VINs. Each is decoded via NHTSA vPIC.' },
   'bulkvin-instructions': { title: 'Bulk Add by VIN — Instructions', body: '<ol><li><strong>Paste VINs:</strong> Enter up to 500 VINs (one per line).</li><li><strong>Set Defaults:</strong> Choose default Location and Status.</li><li><strong>Decode:</strong> Click "Decode All VINs".</li><li><strong>Verify Decoded Data:</strong> Review the results table. Confirm all decoded information (make, model, year, fuel type) is correct for each vehicle before creating assets.</li><li><strong>Review Failures:</strong> Failed VINs shown in red.</li><li><strong>Create:</strong> Click "Create Assets".</li></ol>' },
-  'location': { title: 'Location Map — Purpose', body: 'View all assets on a map. Switch between Forms view, Projects view, and Breadcrumb trails.' },
-  'location-instructions': { title: 'Location Map — Instructions', body: '<ol><li><strong>Forms:</strong> Shows assets at their last reported location.</li><li><strong>Projects:</strong> Groups assets by project site.</li><li><strong>Breadcrumbs:</strong> Shows location history trail for a selected asset.</li><li>Click any pin for details, Street View, and asset details link.</li></ol>' }
+  'location': { title: 'Location Map — Purpose', body: 'View all assets on a map. Switch between Forms view, Projects view, and Breadcrumb trails. The instructions below are specific to the current map view and will change when you switch views — check back as needed.' },
+  'location-instructions': { title: 'Location Map — Instructions', body: '<p style="margin-bottom:8px;">These instructions are specific to each map view and will update when you switch. Select a view above to see its instructions.</p><ol><li><strong>Forms:</strong> Shows assets at their last reported location.</li><li><strong>Projects:</strong> Groups assets by project site.</li><li><strong>Breadcrumbs:</strong> Shows location history trail for a selected asset.</li><li>Click any pin for details, Street View, and asset details link.</li></ol>' },
+  'location-forms': { title: 'Location Map — Forms View — Purpose', body: 'Shows every asset at its last reported GPS location from fuel transactions and form submissions. Pins are color-coded by activity type.' },
+  'location-forms-instructions': { title: 'Location Map — Forms View — Instructions', body: '<ol><li>Pins show each asset at its last reported location.</li><li>Pin colors indicate activity type (fuel purchase, form entry, inspection, work order, PM/maintenance).</li><li>Click any pin to see asset details, Street View, and a link to the full asset record.</li><li>Use the Street View link in any popup to see a ground-level view of the asset location.</li></ol>' },
+  'location-projects': { title: 'Location Map — Projects View — Purpose', body: 'Shows all project sites as pins on the map, geocoded from project addresses. Click a pin to see the project name, code, and address.' },
+  'location-projects-instructions': { title: 'Location Map — Projects View — Instructions', body: '<ol><li>Pins represent project sites, not individual assets.</li><li>Click any pin to see the project name, code, and address.</li><li>Use the Street View link to see a ground-level view of the project site.</li><li>Project addresses are geocoded via OpenStreetMap — if a pin is missing, the project may not have a valid address.</li></ol>' },
+  'location-breadcrumb': { title: 'Location Map — Breadcrumb Trail — Purpose', body: 'Shows the GPS location history for a selected asset over a chosen time period. A colored line connects the trail points, and the legend shows which activity types are displayed.' },
+  'location-breadcrumb-instructions': { title: 'Location Map — Breadcrumb Trail — Instructions', body: '<ol><li><strong>Select Asset:</strong> Choose an asset from the dropdown, or "All Active Assets" to see trails for all assets.</li><li><strong>Select Year:</strong> Choose the year to view.</li><li><strong>Select Range:</strong> For the current year, choose Today, Last 7/30/90 Days, or Year to Date.</li><li><strong>Form Entry Locations:</strong> Check the box to also show where fuel form entries were submitted (the GPS location when the form was filled out, which may differ from the fuel stop location).</li><li>The legend in the bottom-right corner shows which activity types are color-coded on the trail.</li><li>Click any trail point for details and Street View.</li></ol>' },
+  'inspections': { title: 'Inspections — Purpose', body: 'Track and manage equipment inspections. Inspection records will appear here.' },
+  'inspections-instructions': { title: 'Inspections — Instructions', body: '<ol><li>Inspection tracking will appear here once configured.</li></ol>' },
+  'workorders': { title: 'Work Orders — Purpose', body: 'Track and manage work orders for asset maintenance and repairs.' },
+  'workorders-instructions': { title: 'Work Orders — Instructions', body: '<ol><li>Work order tracking will appear here once configured.</li></ol>' },
+  'transfers': { title: 'Transfers — Purpose', body: 'Track asset transfers between locations, projects, or operators.' },
+  'transfers-instructions': { title: 'Transfers — Instructions', body: '<ol><li>Asset transfer tracking will appear here once configured.</li></ol>' },
+  'manuals': { title: 'Manuals — Purpose', body: 'Store and access equipment manuals and documentation.' },
+  'manuals-instructions': { title: 'Manuals — Instructions', body: '<ol><li>Equipment manuals will appear here once configured.</li></ol>' }
 };
 
 function getTabKey() {
@@ -141,12 +155,30 @@ function getTabKey() {
   return active ? active.getAttribute('data-tab') : 'overview';
 }
 
+// Returns the help content key for the current tab + map mode (location tab only)
+function getHelpKey(base) {
+  var tab = getTabKey();
+  if (tab === 'location' && typeof mapMode !== 'undefined' && mapMode) {
+    // Try map-mode-specific content first (e.g. 'location-forms')
+    var modeKey = 'location-' + mapMode;
+    if (helpContent[modeKey + (base === '-instructions' ? '-instructions' : '')]) {
+      return modeKey + (base === '-instructions' ? '-instructions' : '');
+    }
+    // Also try with base appended
+    if (base && helpContent[modeKey + base]) {
+      return modeKey + base;
+    }
+  }
+  return tab + (base || '');
+}
+
 function setupInfoModals() {
   var btnP = document.getElementById('btnTabPurpose');
   var btnI = document.getElementById('btnTabInstructions');
   if (btnP) {
     btnP.addEventListener('click', function() {
-      var c = helpContent[getTabKey()];
+      var key = getHelpKey('');
+      var c = helpContent[key];
       if (!c) return;
       var t = document.getElementById('amPurposeModalTitle');
       var b = document.getElementById('amPurposeModalBody');
@@ -157,7 +189,8 @@ function setupInfoModals() {
   }
   if (btnI) {
     btnI.addEventListener('click', function() {
-      var c = helpContent[getTabKey() + '-instructions'];
+      var key = getHelpKey('-instructions');
+      var c = helpContent[key];
       if (!c) return;
       var t = document.getElementById('amInstructionsModalTitle');
       var b = document.getElementById('amInstructionsModalBody');
@@ -717,12 +750,52 @@ window.setMapMode = function(mode) {
 // ── Geocode helper using Nominatim (free OpenStreetMap geocoder) ──
 // No country restriction — customers may operate in US, Canada, Mexico, and US territories
 // Tries multiple address formats to disambiguate (e.g. "Houston" → "Houston, TX" if state is known)
+//
+// Rate limiting: Nominatim allows max 1 request/second. We queue all requests with
+// 1.1-second spacing to avoid 429s and "Failed to fetch" errors when switching maps rapidly.
+// Uses XMLHttpRequest instead of fetch to bypass error-handler.js's fetch wrapper
+// (geocode failures are expected/handled and should NOT trigger error emails).
 var geocodeCache = {};
+var _geocodeQueue = [];
+var _geocodeProcessing = false;
+
+function _nominatimXHR(url) {
+  return new Promise(function(resolve) {
+    var xhr = new XMLHttpRequest();
+    xhr.timeout = 8000;
+    xhr.open('GET', url, true);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch(e) { resolve([]); }
+      } else { resolve([]); }
+    };
+    xhr.ontimeout = xhr.onerror = function() { resolve([]); };
+    xhr.send();
+  });
+}
+
+function _processGeocodeQueue() {
+  if (_geocodeQueue.length === 0) { _geocodeProcessing = false; return; }
+  _geocodeProcessing = true;
+  var item = _geocodeQueue.shift();
+  _nominatimXHR(item.url).then(function(data) {
+    item.resolve(data);
+    setTimeout(_processGeocodeQueue, 1100); // Nominatim: max 1 req/sec
+  });
+}
+
+function _queueNominatim(url) {
+  return new Promise(function(resolve) {
+    _geocodeQueue.push({ url: url, resolve: resolve });
+    if (!_geocodeProcessing) _processGeocodeQueue();
+  });
+}
+
 function geocodeAddress(address, hintState) {
   return new Promise(function(resolve) {
     // ── Structured address object: use Nominatim structured params for precision ──
-    // This sends street/city/state/zip as separate params instead of a free-text query
-    // which produces much more accurate results (no confusion from vendor names)
     if (typeof address === 'object' && address !== null) {
       var cacheKey = JSON.stringify(address);
       if (geocodeCache[cacheKey]) { resolve(geocodeCache[cacheKey]); return; }
@@ -734,10 +807,7 @@ function geocodeAddress(address, hintState) {
       if (address.zip) params += '&postalcode=' + encodeURIComponent(address.zip);
       if (address.country) params += '&country=' + encodeURIComponent(address.country);
 
-      fetch('https://nominatim.openstreetmap.org/search?' + params, {
-        headers: { 'Accept': 'application/json' }
-      })
-      .then(function(r) { return r.json(); })
+      _queueNominatim('https://nominatim.openstreetmap.org/search?' + params)
       .then(function(data) {
         if (data && data.length > 0) {
           var coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
@@ -747,21 +817,16 @@ function geocodeAddress(address, hintState) {
           // Fallback: try free-text query with combined address (no vendor name)
           var fallback = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
           if (fallback.trim().length < 5) { resolve(null); return; }
-          fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(fallback) + '&limit=1&addressdetails=1', {
-            headers: { 'Accept': 'application/json' }
-          })
-          .then(function(r2) { return r2.json(); })
+          _queueNominatim('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(fallback) + '&limit=1&addressdetails=1')
           .then(function(data2) {
             if (data2 && data2.length > 0) {
               var coords2 = { lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon) };
               geocodeCache[cacheKey] = coords2;
               resolve(coords2);
             } else { resolve(null); }
-          })
-          .catch(function() { resolve(null); });
+          });
         }
-      })
-      .catch(function() { resolve(null); });
+      });
       return;
     }
 
@@ -774,18 +839,14 @@ function geocodeAddress(address, hintState) {
       address = address + ', ' + hintState;
     }
 
-    fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(address) + '&limit=1&addressdetails=1', {
-      headers: { 'Accept': 'application/json' }
-    })
-    .then(function(r) { return r.json(); })
+    _queueNominatim('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(address) + '&limit=1&addressdetails=1')
     .then(function(data) {
       if (data && data.length > 0) {
         var coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
         geocodeCache[address] = coords;
         resolve(coords);
       } else { resolve(null); }
-    })
-    .catch(function() { resolve(null); });
+    });
   });
 }
 
@@ -866,6 +927,7 @@ function renderProjectsView() {
   if (amClusterGroup) amClusterGroup.clearLayers();
   if (window._bcMarkerGroup) { amMapInstance.removeLayer(window._bcMarkerGroup); window._bcMarkerGroup = null; }
   if (window._breadcrumbLine) { amMapInstance.removeLayer(window._breadcrumbLine); window._breadcrumbLine = null; }
+  if (window._bcLegend) { amMapInstance.removeControl(window._bcLegend); window._bcLegend = null; }
   amMapInstance.setView([39.5, -98.35], 4);
 
   fetch('/api/projects')
