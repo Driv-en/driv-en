@@ -76,7 +76,7 @@ var DQF_MODAL_MAP = {
 })();
 
 function wirePersonalization() {
-  var themeCheckbox = document.getElementById('dashThemeCheckbox');
+  var themeCheckbox = document.getElementById('dqfThemeCheckbox') || document.getElementById('dashThemeCheckbox');
   if (themeCheckbox) {
     var currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
     themeCheckbox.checked = (currentTheme === 'dark');
