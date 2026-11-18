@@ -628,18 +628,24 @@ function clearAddForm() {
 
 // ═══════════════════════════════════════════════════════════════
 // HEADER CLEANUP — remove duplicate header rows (row2/row3/utility)
-// Uses timer-based approach (not MutationObserver) to avoid fighting with dashboard-common.js
+// Uses MutationObserver with debounce + disconnect/reconnect to catch stale SW injections
 // ═══════════════════════════════════════════════════════════════
 var _amHeaderCleaning = false;
+var _amHeaderObserver = null;
+var _amHeaderDebounce = null;
+
 function amRebuildHeader() {
   if (_amHeaderCleaning) return;
   _amHeaderCleaning = true;
+
+  // Disconnect observer while we modify the header
+  if (_amHeaderObserver) _amHeaderObserver.disconnect();
+
   try {
     var header = document.getElementById('dashHeader');
     if (!header) return;
 
     // The correct structure is: #dashHeader > .dash-header > .dash-header-row1
-    // Just remove extra rows — don't clear the whole header (let dashboard-common.js populate it)
     var dashHeaderDiv = header.querySelector('.dash-header') || header;
     var row1 = dashHeaderDiv.querySelector('.dash-header-row1');
     if (row1) {
@@ -664,6 +670,22 @@ function amRebuildHeader() {
     if (allTitles.length > 1) {
       for (var i = 1; i < allTitles.length; i++) allTitles[i].remove();
     }
+    // Remove any h1 in the header that isn't #dashPageTitle (catches stale titles without IDs)
+    var allH1s = header.querySelectorAll('h1');
+    for (var i = 0; i < allH1s.length; i++) {
+      if (allH1s[i].id !== 'dashPageTitle') {
+        console.log('[AM-Additions] Removing stray h1:', allH1s[i].textContent.substring(0, 40));
+        allH1s[i].remove();
+      }
+    }
+    // Remove any direct child of #dashHeader that isn't .dash-header (catches bare divs/h1s)
+    var directChildren = header.children;
+    for (var i = directChildren.length - 1; i >= 0; i--) {
+      if (!directChildren[i].classList || !directChildren[i].classList.contains('dash-header')) {
+        console.log('[AM-Additions] Removing non-.dash-header child:', directChildren[i].tagName, directChildren[i].className || '(no class)');
+        directChildren[i].remove();
+      }
+    }
     // Set the page title
     var titleEl = document.getElementById('dashPageTitle');
     if (titleEl) {
@@ -673,27 +695,46 @@ function amRebuildHeader() {
   } catch(e) {
     console.error('[AM-Additions] Header cleanup error:', e);
   }
-  _amHeaderCleaning = false;
+
+  // Reconnect observer after cleanup
+  if (_amHeaderObserver && header) {
+    setTimeout(function() {
+      _amHeaderObserver.observe(header, { childList: true, subtree: true });
+      _amHeaderCleaning = false;
+    }, 100);
+  } else {
+    _amHeaderCleaning = false;
+  }
 }
 
-// Run header cleanup on timers (not MutationObserver — that fights with dashboard-common.js)
+// Set up MutationObserver with debounce
 document.addEventListener('DOMContentLoaded', function() {
-  setTimeout(amRebuildHeader, 800);
+  var header = document.getElementById('dashHeader');
+  if (!header) return;
+
+  _amHeaderObserver = new MutationObserver(function() {
+    if (_amHeaderDebounce) clearTimeout(_amHeaderDebounce);
+    _amHeaderDebounce = setTimeout(amRebuildHeader, 200);
+  });
+
+  _amHeaderObserver.observe(header, { childList: true, subtree: true });
+
+  // Also run on timers as backup
+  setTimeout(amRebuildHeader, 500);
   setTimeout(amRebuildHeader, 1500);
   setTimeout(amRebuildHeader, 3000);
-  setTimeout(amRebuildHeader, 5000);
 });
 
 // ═══════════════════════════════════════════════════════════════
-// ── Map asset filter: "All Assets" shows all pins, specific asset shows breadcrumb trail ──
-// Replaces the old 3-button mode switcher (Forms/Projects/Breadcrumb)
+// ── Map: Breadcrumb Trail with asset filter ──
+// Single map view — breadcrumb trail for all assets or a specific asset
 // ═══════════════════════════════════════════════════════════════
 window.setupMapAssetFilter = function() {
   var filter = document.getElementById('amMapAssetFilter');
   if (!filter) return;
 
-  // Populate with active assets
-  filter.innerHTML = '<option value="all">All Assets</option>';
+  // Populate with active assets — "All Active Assets" is the default
+  filter.innerHTML = '<option value="all">All Active Assets</option>';
   allAssets.forEach(function(a) {
     var s = (a.status || '').toLowerCase();
     if (s === 'retired' || s === 'sold' || s === 'lost') return;
@@ -703,60 +744,57 @@ window.setupMapAssetFilter = function() {
     filter.appendChild(opt);
   });
 
-  filter.onchange = function() {
-    var assetId = filter.value;
-    var bcYear = document.getElementById('amBreadcrumbYear');
-    var bcRange = document.getElementById('amBreadcrumbDateRange');
-    var bcFormLabel = document.getElementById('amBcFormEntryLabel');
+  // Show all filter controls by default
+  var bcYear = document.getElementById('amBreadcrumbYear');
+  var bcRange = document.getElementById('amBreadcrumbDateRange');
+  var bcFormLabel = document.getElementById('amBcFormEntryLabel');
 
-    if (assetId === 'all') {
-      // Show all assets (Forms View)
-      mapMode = 'forms';
-      clearGeocodeQueue();
-      if (bcYear) bcYear.style.display = 'none';
-      if (bcRange) bcRange.style.display = 'none';
-      if (bcFormLabel) bcFormLabel.style.display = 'none';
-      renderFormsView();
-    } else {
-      // Show breadcrumb trail for selected asset
-      mapMode = 'breadcrumb';
-      clearGeocodeQueue();
-      if (bcYear) {
-        bcYear.style.display = 'inline-block';
-        var currentYear = new Date().getFullYear();
-        bcYear.innerHTML = '';
-        for (var y = currentYear; y >= 2020; y--) {
-          var opt = document.createElement('option');
-          opt.value = String(y);
-          opt.textContent = String(y);
-          bcYear.appendChild(opt);
-        }
-        bcYear.value = String(currentYear);
-        bcYear.onchange = function() {
-          updateDaysFilterVisibility();
-          renderBreadcrumbTrail();
-        };
-      }
-      if (bcRange) {
-        bcRange.style.display = 'inline-block';
-        bcRange.onchange = function() { renderBreadcrumbTrail(); };
-      }
-      if (bcFormLabel) {
-        bcFormLabel.style.display = 'inline-flex';
-        bcFormLabel.style.alignItems = 'center';
-        var bcFormCheck = document.getElementById('amBcFormEntryLocations');
-        if (bcFormCheck) {
-          bcFormCheck.checked = false;
-          bcFormCheck.onchange = function() { renderBreadcrumbTrail(); };
-        }
-      }
+  // Set up year selector
+  if (bcYear) {
+    bcYear.style.display = 'inline-block';
+    var currentYear = new Date().getFullYear();
+    bcYear.innerHTML = '';
+    for (var y = currentYear; y >= 2020; y--) {
+      var opt = document.createElement('option');
+      opt.value = String(y);
+      opt.textContent = String(y);
+      bcYear.appendChild(opt);
+    }
+    bcYear.value = String(currentYear);
+    bcYear.onchange = function() {
       updateDaysFilterVisibility();
       renderBreadcrumbTrail();
+    };
+  }
+
+  // Set up date range selector
+  if (bcRange) {
+    bcRange.style.display = 'inline-block';
+    bcRange.onchange = function() { renderBreadcrumbTrail(); };
+  }
+
+  // Set up form entry locations checkbox
+  if (bcFormLabel) {
+    bcFormLabel.style.display = 'inline-flex';
+    bcFormLabel.style.alignItems = 'center';
+    var bcFormCheck = document.getElementById('amBcFormEntryLocations');
+    if (bcFormCheck) {
+      bcFormCheck.checked = false;
+      bcFormCheck.onchange = function() { renderBreadcrumbTrail(); };
     }
+  }
+
+  // Asset filter change — always render breadcrumb trail
+  filter.onchange = function() {
+    clearGeocodeQueue();
+    renderBreadcrumbTrail();
   };
 
-  // Auto-load "All Assets" view
-  renderFormsView();
+  updateDaysFilterVisibility();
+
+  // Auto-load breadcrumb trail with "All Active Assets" default
+  mapMode = 'breadcrumb';
+  renderBreadcrumbTrail();
 };
 
 // Keep setMapMode as a no-op stub for backward compatibility
