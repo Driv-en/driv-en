@@ -300,6 +300,7 @@
   <div class="dqf-pill-bar">
     <button class="dqf-pill-btn dqf-pill-purpose" id="btnPurpose">&#9682; Purpose</button>
     <button class="dqf-pill-btn dqf-pill-instructions" id="btnInstructions">&#9776; Instructions</button>
+    <button class="dqf-pill-btn" id="btnDqfImport" onclick="dqfOpenImport()" style="background-color:#16a34a; color:#fff; border-color:#15803d;">&#128230; Import from Competitor</button>
     <button class="dqf-back-btn" id="dqfBackBtn" onclick="dqfBackToList()" style="display:none;">&#8592; Back to Driver List</button>
   </div>
 
@@ -392,6 +393,67 @@
     </div>
   </div>
 
+  <!-- DQF Competitor Import Modal -->
+  <div id="dqfImportModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:10000; background:rgba(0,0,0,0.5); align-items:flex-start; justify-content:center; overflow-y:auto; padding:20px 0;">
+    <div style="background:var(--bg-card,#fff); border-radius:10px; box-shadow:0 8px 32px rgba(0,0,0,0.3); max-width:900px; width:90%; margin:20px auto; box-sizing:border-box;">
+      <!-- Header -->
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:2px solid var(--card-green-border,#16a34a); border-radius:10px 10px 0 0; background:var(--bg-card,#fff);">
+        <div style="font-size:18px; font-weight:700; color:var(--text,#0f172a);">&#128230; Import DQF Data from Competitor</div>
+        <button onclick="dqfCloseImport()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-muted,#64748b); padding:0 4px;">&times;</button>
+      </div>
+      <!-- Body -->
+      <div style="padding:20px; max-height:75vh; overflow-y:auto;">
+        <!-- Step 1: Select competitor + upload -->
+        <div style="margin-bottom:16px;">
+          <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Competitor System:</label>
+          <select id="dqfImportProvider" style="width:100%; max-width:300px; padding:8px 12px; border:1px solid var(--border,#cbd5e1); border-radius:6px; font-size:14px; background:var(--bg-card,#fff); color:var(--text,#0f172a); box-sizing:border-box;">
+            <option value="auto">Auto-detect (recommended)</option>
+            <option value="jjkeller">J.J. Keller</option>
+            <option value="tenstreet">Tenstreet</option>
+            <option value="motive">Motive / Samsara</option>
+            <option value="generic_dqf">Generic DQF CSV</option>
+          </select>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">CSV File:</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <input type="file" id="dqfImportFile" accept=".csv,text/csv" style="flex:1; min-width:200px; padding:8px; border:1px solid var(--border,#cbd5e1); border-radius:6px; font-size:14px; background:var(--bg-card,#fff); color:var(--text,#0f172a);">
+            <button onclick="dqfImportRunPreview()" style="padding:8px 20px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer;">&#128269; Parse &amp; Preview</button>
+            <button id="dqfImportTemplateBtn" onclick="dqfImportDownloadTemplate()" style="padding:8px 16px; background:transparent; border:2px solid var(--card-green-border,#16a34a); border-radius:6px; color:#16a34a; cursor:pointer; font-size:13px; font-weight:600;">&#11015; Download Template</button>
+          </div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Duplicate Handling:</label>
+          <select id="dqfImportDupMode" style="padding:8px 12px; border:1px solid var(--border,#cbd5e1); border-radius:6px; font-size:14px; background:var(--bg-card,#fff); color:var(--text,#0f172a);">
+            <option value="update">Update existing drivers with new DQF data (recommended)</option>
+            <option value="skip">Skip drivers that already exist</option>
+          </select>
+        </div>
+
+        <!-- Status banner -->
+        <div id="dqfImportStatus" style="display:none; padding:10px 14px; border-radius:6px; font-size:13px; margin-bottom:12px;"></div>
+
+        <!-- Column mapping -->
+        <div id="dqfImportMapping" style="display:none; margin-bottom:16px;">
+          <h4 style="font-size:13px; margin:0 0 8px 0;">Column Mapping (auto-detected — adjust if needed):</h4>
+          <div id="dqfImportMappingGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:8px;"></div>
+        </div>
+
+        <!-- Preview results -->
+        <div id="dqfImportResults" style="display:none;"></div>
+
+        <!-- Post-import checklist -->
+        <div id="dqfImportChecklist" style="display:none; margin-top:16px;"></div>
+
+        <!-- Import history -->
+        <div style="margin-top:20px; border-top:1px solid var(--border,#e2e8f0); padding-top:12px;">
+          <h4 style="font-size:13px; margin:0 0 8px 0;">Import History</h4>
+          <div id="dqfImportHistory"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div class="dqf-toast dqf-toast-success" id="dqfToast"></div>
 
@@ -414,5 +476,6 @@
   <script src="/app/shared/apply-units.js?v=1"></script>
   <script src="/app/shared/voice.js?v=3"></script>
   <script src="/app/dashboard/driver-qualification-files.js?v=8"></script>
+  <script src="/app/dashboard/dqf-import.js?v=1"></script>
 </body>
 </html>
