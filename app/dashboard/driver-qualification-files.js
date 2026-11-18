@@ -31,9 +31,13 @@ var DQF_MODAL_MAP = {
 // ============================================================
 (async function() {
   try {
-    var u = getAuthUser ? getAuthUser() : null;
+    var u = window.dashUser || window.drivenUser;
+    if (!u) {
+      try { u = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user") || 'null'); } catch(e) {}
+    }
     if (!u) { window.location.href = '/app/auth/login.html'; return; }
-    currentUserOrgId = u.org_id || localStorage.getItem('driv-en-org-id') || '';
+    window.dashUser = u;
+    currentUserOrgId = u.org_id || localStorage.getItem('driven_org_id') || localStorage.getItem('driv-en-org-id') || '';
 
     // Build header
     if (typeof buildDashHeader === 'function') buildDashHeader();
@@ -229,7 +233,11 @@ function dqfChangePageSize(val) { dqfPageSize = parseInt(val) || 25; localStorag
 function dqfPrintTable() { window.print(); }
 
 function populateDqfWelcome() {
-  var u = window.dashUser || {};
+  var u = window.dashUser || window.drivenUser;
+  if (!u) {
+    try { u = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user") || '{}'); } catch(e) { u = {}; }
+  }
+  window.dashUser = u;
   var nameEl = document.getElementById('dqf-welcome-name');
   if (nameEl) {
     var fn = u.first_name || u.firstName || '';
@@ -239,7 +247,7 @@ function populateDqfWelcome() {
     nameEl.textContent = name ? ('Welcome back, ' + name) : 'Welcome back';
   }
   var roleEl = document.getElementById('dqf-welcome-role');
-  if (roleEl) roleEl.textContent = u.role || u.role_name || '';
+  if (roleEl) roleEl.textContent = u.role || u.role_name || u.role_id || '';
   var emailEl = document.getElementById('dqf-welcome-email');
   if (emailEl) emailEl.textContent = u.email || '';
 }
@@ -361,6 +369,91 @@ function renderProfile(d) {
   html += '<button class="dqf-btn dqf-btn-save" style="margin-bottom:12px;" onclick="addDqfAssetCard()">&#43; Add Asset</button>';
   html += '<div id="p_assets_list"></div>';
   html += '</div></div>';
+
+  // ===== FMCSA / DOT COMPLIANCE SECTIONS =====
+  html += '<div class="dqf-section">';
+  html += '<div class="dqf-section-title">📋 FMCSA / DOT Compliance — 49 CFR Part 391</div>';
+
+  // 391.21 — Application for Employment
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>Application for Employment — Date Signed (391.21)</label><input type="date" id="p_dqf_application_date" value="' + esc(d.dqf_application_date || '') + '"></div>';
+  html += '<div class="dqf-field"><label>Application Document</label><div class="dqf-file-row"><input type="file" id="p_dqf_application_doc" accept="image/*,application/pdf"><span class="um-status-badge ' + (d.dqf_application_doc ? 'um-status-current' : 'um-status-none') + '">' + (d.dqf_application_doc ? 'On File' : 'Missing') + '</span></div></div>';
+  html += '</div>';
+
+  // 391.23 — Previous Employment Verification (3-year history)
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>Previous Employment Verification — Date Initiated (391.23)</label><input type="date" id="p_dqf_emp_verification_date" value="' + esc(d.dqf_emp_verification_date || '') + '"></div>';
+  html += '<div class="dqf-field"><label>Verification Status</label><select id="p_dqf_emp_verification_status"><option value="">—</option><option value="pending"' + (d.dqf_emp_verification_status==='pending'?' selected':'') + '>Pending</option><option value="complete"' + (d.dqf_emp_verification_status==='complete'?' selected':'') + '>Complete</option><option value="incomplete"' + (d.dqf_emp_verification_status==='incomplete'?' selected':'') + '>Incomplete</option></select></div>';
+  html += '<div class="dqf-field dqf-field-full"><label>Prior Employers (3-year history — name, dates, contact, response)</label><textarea id="p_dqf_emp_verification_notes" rows="3" placeholder="List each prior employer, dates employed, inquiry date, response received">' + esc(d.dqf_emp_verification_notes || '') + '</textarea></div>';
+  html += '</div>';
+
+  // 391.25 — Annual MVR Review
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>Annual MVR Review — Date (391.25)</label><input type="date" id="p_dqf_annual_mvr_date" value="' + esc(d.dqf_annual_mvr_date || '') + '"></div>';
+  html += '<div class="dqf-field"><label>Reviewer Name</label><input type="text" id="p_dqf_annual_mvr_reviewer" value="' + esc(d.dqf_annual_mvr_reviewer || '') + '"></div>';
+  html += '<div class="dqf-field dqf-field-full"><label>Review Notes</label><textarea id="p_dqf_annual_mvr_notes" rows="2">' + esc(d.dqf_annual_mvr_notes || '') + '</textarea></div>';
+  html += '</div>';
+
+  // 391.27 — Annual List of Violations
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>Annual List of Violations — Certification Date (391.27)</label><input type="date" id="p_dqf_annual_violations_date" value="' + esc(d.dqf_annual_violations_date || '') + '"></div>';
+  html += '<div class="dqf-field"><label>Certification</label><select id="p_dqf_annual_violations_cert"><option value="">—</option><option value="none"' + (d.dqf_annual_violations_cert==='none'?' selected':'') + '>No Violations</option><option value="reported"' + (d.dqf_annual_violations_cert==='reported'?' selected':'') + '>Violations Reported</option></select></div>';
+  html += '<div class="dqf-field dqf-field-full"><label>Violation Details (if any)</label><textarea id="p_dqf_annual_violations_details" rows="2">' + esc(d.dqf_annual_violations_details || '') + '</textarea></div>';
+  html += '</div>';
+
+  // 391.31 — Road Test Certificate
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>Road Test — Date (391.31)</label><input type="date" id="p_dqf_road_test_date" value="' + esc(d.dqf_road_test_date || '') + '"></div>';
+  html += '<div class="dqf-field"><label>Examiner Name</label><input type="text" id="p_dqf_road_test_examiner" value="' + esc(d.dqf_road_test_examiner || '') + '"></div>';
+  html += '<div class="dqf-field"><label>Vehicle Type</label><input type="text" id="p_dqf_road_test_vehicle" value="' + esc(d.dqf_road_test_vehicle || '') + '"></div>';
+  html += '<div class="dqf-field"><label>OR Equivalent Experience</label><select id="p_dqf_road_test_equiv"><option value="">—</option><option value="yes"' + (d.dqf_road_test_equiv==='yes'?' selected':'') + '>Documented</option><option value="no"' + (d.dqf_road_test_equiv==='no'?' selected':'') + '>N/A</option></select></div>';
+  html += '</div>';
+
+  // 382.301 — Pre-employment Drug Test
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>Pre-employment Drug Test — Date (382.301)</label><input type="date" id="p_dqf_preemp_drug_date" value="' + esc(d.dqf_preemp_drug_date || '') + '"></div>';
+  html += '<div class="dqf-field"><label>Result</label><select id="p_dqf_preemp_drug_result"><option value="">—</option><option value="negative"' + (d.dqf_preemp_drug_result==='negative'?' selected':'') + '>Negative</option><option value="positive"' + (d.dqf_preemp_drug_result==='positive'?' selected':'') + '>Positive</option><option value="refused"' + (d.dqf_preemp_drug_result==='refused'?' selected':'') + '>Refused</option></select></div>';
+  html += '</div>';
+
+  // 391.43 — Medical Examiner Information
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>Medical Examiner — Name (391.43)</label><input type="text" id="p_dqf_medex_name" value="' + esc(d.dqf_medex_name || '') + '"></div>';
+  html += '<div class="dqf-field"><label>National Registry Number</label><input type="text" id="p_dqf_medex_registry" value="' + esc(d.dqf_medex_registry || '') + '"></div>';
+  html += '<div class="dqf-field"><label>Examiner Phone</label><input type="text" id="p_dqf_medex_phone" value="' + esc(d.dqf_medex_phone || '') + '"></div>';
+  html += '<div class="dqf-field dqf-field-full"><label>Examiner Address</label><input type="text" id="p_dqf_medex_address" value="' + esc(d.dqf_medex_address || '') + '"></div>';
+  html += '</div>';
+
+  // 391.64 — Medical Variance
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>Medical Variance — FMCSA (391.64)</label><select id="p_dqf_med_variance"><option value="no"' + (d.dqf_med_variance!=='yes'?' selected':'') + '>No Variance</option><option value="yes"' + (d.dqf_med_variance==='yes'?' selected':'') + '>Variance Issued</option></select></div>';
+  html += '<div class="dqf-field"><label>Variance Number (if applicable)</label><input type="text" id="p_dqf_med_variance_num" value="' + esc(d.dqf_med_variance_num || '') + '"></div>';
+  html += '</div>';
+
+  // 384.226 — CDLIS Verification
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>CDLIS Verification — Date (384.226)</label><input type="date" id="p_dqf_cdlis_date" value="' + esc(d.dqf_cdlis_date || '') + '"></div>';
+  html += '<div class="dqf-field"><label>Verification Result</label><select id="p_dqf_cdlis_result"><option value="">—</option><option value="verified"' + (d.dqf_cdlis_result==='verified'?' selected':'') + '>Verified</option><option value="mismatch"' + (d.dqf_cdlis_result==='mismatch'?' selected':'') + '>Mismatch</option><option value="pending"' + (d.dqf_cdlis_result==='pending'?' selected':'') + '>Pending</option></select></div>';
+  html += '</div>';
+
+  // 391.23(h) — Safety Performance History (drug/alcohol from prior employers)
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>Safety Performance History — Date (391.23(h))</label><input type="date" id="p_dqf_safety_perf_date" value="' + esc(d.dqf_safety_perf_date || '') + '"></div>';
+  html += '<div class="dqf-field"><label>Drug/Alcohol Test Results from Prior Employers</label><select id="p_dqf_safety_perf_result"><option value="">—</option><option value="none"' + (d.dqf_safety_perf_result==='none'?' selected':'') + '>No Positive/Refused</option><option value="positive"' + (d.dqf_safety_perf_result==='positive'?' selected':'') + '>Positive/Refused Reported</option><option value="pending"' + (d.dqf_safety_perf_result==='pending'?' selected':'') + '>Pending</option></select></div>';
+  html += '</div>';
+
+  // TSA 1572 — Hazmat Background
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>Hazmat / TSA Background — Date (TSA 49 CFR 1572)</label><input type="date" id="p_dqf_hazmat_date" value="' + esc(d.dqf_hazmat_date || '') + '"></div>';
+  html += '<div class="dqf-field"><label>Result</label><select id="p_dqf_hazmat_result"><option value="">—</option><option value="cleared"' + (d.dqf_hazmat_result==='cleared'?' selected':'') + '>Cleared</option><option value="denied"' + (d.dqf_hazmat_result==='denied'?' selected':'') + '>Denied</option><option value="pending"' + (d.dqf_hazmat_result==='pending'?' selected':'') + '>Pending</option><option value="na"' + (d.dqf_hazmat_result==='na'?' selected':'') + '>N/A (No Hazmat)</option></select></div>';
+  html += '</div>';
+
+  // 49 CFR 1592 — TWIC Card
+  html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+  html += '<div class="dqf-field"><label>TWIC Card Number (49 CFR 1592)</label><input type="text" id="p_dqf_twic_num" value="' + esc(d.dqf_twic_num || '') + '"></div>';
+  html += '<div class="dqf-field"><label>TWIC Expiration</label><input type="date" id="p_dqf_twic_exp" value="' + esc(d.dqf_twic_exp || '') + '"></div>';
+  html += '</div>';
+
+  html += '</div>'; // end FMCSA section
 
   // Save bar
   html += '<div class="dqf-save-bar">';
@@ -487,7 +580,38 @@ async function saveDqfProfile(complete) {
     drug_test_recheck: getV('p_dt_recheck'),
     drug_test_status: calcStatus(getV('p_dt_recheck')),
     auto_policy_status: 'none',
-    step2_status: complete ? 'complete' : 'incomplete'
+    step2_status: complete ? 'complete' : 'incomplete',
+    // FMCSA / DOT Compliance fields
+    dqf_application_date: getV('p_dqf_application_date'),
+    dqf_emp_verification_date: getV('p_dqf_emp_verification_date'),
+    dqf_emp_verification_status: getV('p_dqf_emp_verification_status'),
+    dqf_emp_verification_notes: getV('p_dqf_emp_verification_notes'),
+    dqf_annual_mvr_date: getV('p_dqf_annual_mvr_date'),
+    dqf_annual_mvr_reviewer: getV('p_dqf_annual_mvr_reviewer'),
+    dqf_annual_mvr_notes: getV('p_dqf_annual_mvr_notes'),
+    dqf_annual_violations_date: getV('p_dqf_annual_violations_date'),
+    dqf_annual_violations_cert: getV('p_dqf_annual_violations_cert'),
+    dqf_annual_violations_details: getV('p_dqf_annual_violations_details'),
+    dqf_road_test_date: getV('p_dqf_road_test_date'),
+    dqf_road_test_examiner: getV('p_dqf_road_test_examiner'),
+    dqf_road_test_vehicle: getV('p_dqf_road_test_vehicle'),
+    dqf_road_test_equiv: getV('p_dqf_road_test_equiv'),
+    dqf_preemp_drug_date: getV('p_dqf_preemp_drug_date'),
+    dqf_preemp_drug_result: getV('p_dqf_preemp_drug_result'),
+    dqf_medex_name: getV('p_dqf_medex_name'),
+    dqf_medex_registry: getV('p_dqf_medex_registry'),
+    dqf_medex_phone: getV('p_dqf_medex_phone'),
+    dqf_medex_address: getV('p_dqf_medex_address'),
+    dqf_med_variance: getV('p_dqf_med_variance'),
+    dqf_med_variance_num: getV('p_dqf_med_variance_num'),
+    dqf_cdlis_date: getV('p_dqf_cdlis_date'),
+    dqf_cdlis_result: getV('p_dqf_cdlis_result'),
+    dqf_safety_perf_date: getV('p_dqf_safety_perf_date'),
+    dqf_safety_perf_result: getV('p_dqf_safety_perf_result'),
+    dqf_hazmat_date: getV('p_dqf_hazmat_date'),
+    dqf_hazmat_result: getV('p_dqf_hazmat_result'),
+    dqf_twic_num: getV('p_dqf_twic_num'),
+    dqf_twic_exp: getV('p_dqf_twic_exp')
   };
 
   // Auto policy from vehicle assets
