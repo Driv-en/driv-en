@@ -275,11 +275,11 @@
     var fnIdx = mappedHeader.indexOf('first_name');
     var lnIdx = mappedHeader.indexOf('last_name');
     if (fnIdx !== -1 && lnIdx !== -1 && mappedHeader.indexOf('full_name') === -1) {
+      mappedHeader.push('full_name'); // Push header ONCE (outside loop)
       var out = [mappedHeader];
       for (var r = 1; r < rows.length; r++) {
         var row = rows[r].slice();
         row.push(((row[fnIdx] || '') + ' ' + (row[lnIdx] || '')).trim());
-        mappedHeader.push('full_name');
         out.push(row);
       }
       rows = out;
@@ -302,12 +302,18 @@
   async function sendPreview() {
     var dupSel = document.getElementById('dqfImportDupMode');
     setStatus('Validating…', 'info');
+    var mappedCSV;
+    try { mappedCSV = buildMappedCSV(); }
+    catch (e) { setStatus('Error building mapped CSV: ' + e.message, 'error'); return; }
+    // Log mapped CSV for debugging
+    console.log('DQF Import — mapped CSV being sent to worker:\n', mappedCSV.substring(0, 500));
+    console.log('DQF Import — provider:', state.detectedProvider, 'dup mode:', dupSel ? dupSel.value : 'update');
     try {
       var resp = await fetch('/api/import/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          csv: buildMappedCSV(),
+          csv: mappedCSV,
           entity_type: 'employees',
           provider: state.detectedProvider,
           duplicate_mode: dupSel ? dupSel.value : 'update',
@@ -315,11 +321,19 @@
         })
       });
       var data = await resp.json();
-      if (!resp.ok || !data.success) { setStatus(data.error || 'Preview failed.', 'error'); return; }
+      console.log('DQF Import — worker response:', data);
+      if (!resp.ok || !data.success) {
+        var errMsg = data.error || data.message || 'Preview failed (HTTP ' + resp.status + ')';
+        if (data.errors && data.errors.length) errMsg += ' — ' + data.errors.join('; ');
+        setStatus(errMsg, 'error');
+        console.error('DQF Import preview error:', data);
+        return;
+      }
       state.previewData = data;
       renderResults(data);
     } catch (e) {
       setStatus('Preview request failed: ' + e.message, 'error');
+      console.error('DQF Import preview exception:', e);
     }
   }
 
@@ -401,7 +415,13 @@
         })
       });
       var data = await resp.json();
-      if (!resp.ok || !data.success) { setStatus(data.error || 'Import failed.', 'error'); return; }
+      console.log('DQF Import — commit response:', data);
+      if (!resp.ok || !data.success) {
+        var errMsg = data.error || data.message || 'Import failed (HTTP ' + resp.status + ')';
+        if (data.errors && data.errors.length) errMsg += ' — ' + data.errors.join('; ');
+        setStatus(errMsg, 'error');
+        return;
+      }
       var msg = '✅ Imported ' + data.imported + ' new driver(s)';
       if (data.updated) msg += ', updated ' + data.updated + ' existing';
       if (data.failed) msg += '. ' + data.failed + ' failed — see Import History.';
@@ -411,10 +431,23 @@
       loadDqfImportHistory();
       // Show post-import compliance checklist
       showPostImportChecklist(data);
-      // Reload the driver table
-      if (typeof window.loadDrivers === 'function') { try { await window.loadDrivers(); } catch (e) {} }
-      if (typeof window.renderDriverTable === 'function') { try { window.renderDriverTable(); } catch (e) {} }
-      if (typeof window.updateKpis === 'function') { try { window.updateKpis(); } catch (e) {} }
+      // Reload the driver table — try multiple approaches
+      var tableReloaded = false;
+      if (typeof window.loadDrivers === 'function') { try { await window.loadDrivers(); tableReloaded = true; } catch (e) { console.error('loadDrivers failed:', e); } }
+      if (typeof window.renderDriverTable === 'function') { try { window.renderDriverTable(); } catch (e) { console.error('renderDriverTable failed:', e); } }
+      if (typeof window.updateKpis === 'function') { try { window.updateKpis(); } catch (e) { console.error('updateKpis failed:', e); } }
+      // Also try without window. prefix (in case functions are global but not on window)
+      if (!tableReloaded && typeof loadDrivers === 'function') { try { await loadDrivers(); tableReloaded = true; } catch (e) { console.error('loadDrivers (global) failed:', e); } }
+      if (!tableReloaded && typeof renderDriverTable === 'function') { try { renderDriverTable(); } catch (e) {} }
+      // Add a manual refresh button as fallback
+      if (!tableReloaded) {
+        var results = document.getElementById('dqfImportResults');
+        if (results) {
+          results.style.display = 'block';
+          results.innerHTML = '<div style="padding:12px; background:#fef3c7; border-radius:6px; font-size:13px;">' +
+            'Import complete. Click <button onclick="location.reload()" style="padding:4px 12px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer;">Refresh Page</button> to see updated driver table.</div>';
+        }
+      }
     } catch (e) {
       setStatus('Import request failed: ' + e.message, 'error');
     }
