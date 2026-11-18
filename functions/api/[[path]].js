@@ -1732,6 +1732,33 @@ export async function onRequest(context) {
     }
   }
 
+  // ── Import endpoints: proxy to driv-en-api worker (preview/commit/template/history/undo) ──
+  if (/^\/api\/import(\/|$)/i.test(path)) {
+    try {
+      const apiUrl = new URL(request.url);
+      apiUrl.hostname = 'driv-en-api.driv-en.workers.dev';
+      const reqHeaders = new Headers(request.headers);
+      reqHeaders.set('Host', apiUrl.hostname);
+      const proxyReq = new Request(apiUrl.toString(), {
+        method: request.method,
+        headers: reqHeaders,
+        body: (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : null,
+        redirect: 'follow'
+      });
+      const response = await fetch(proxyReq);
+      const respHeaders = new Headers(response.headers);
+      Object.entries(corsHeaders).forEach(([k, v]) => respHeaders.set(k, v));
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: respHeaders
+      });
+    } catch (err) {
+      console.error('Import proxy error:', err.message);
+      return json({ success: false, error: 'Import service unavailable: ' + err.message }, 502, request);
+    }
+  }
+
   // ── Translate endpoints: proxy to driv-en-api worker (which has the AI binding) ──
   if (/^\/api\/translate(\/|$)/i.test(path)) {
     try {
