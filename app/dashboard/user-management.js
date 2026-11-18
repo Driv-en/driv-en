@@ -394,6 +394,7 @@ function normalizeEmployee(r) {
     is_commercial_driver: parseVal(r.is_commercial_driver),
     dl_expiration: parseVal(r.dl_expiration || r.dlExpiration),
     drives_company_vehicle: parseVal(r.drives_company_vehicle || r.drivesCompanyVehicle),
+    uses_employee_assets: parseVal(r.uses_employee_assets || r.usesEmpAssets),
     step2_status: parseVal(r.step2_status),
     driving_record_status: parseVal(r.driving_record_status),
     medical_card_status: parseVal(r.medical_card_status),
@@ -1081,13 +1082,13 @@ function updateKpi() {
 function checkAdminFlag() {
   var banner = document.getElementById('adminFlagBanner');
   if (!banner) return;
-  // Gate: only show to users who can assign roles (Admin / Fleet Manager)
+  // Gate: only show to users who can assign roles (any admin-level role or Fleet Manager)
   var u = window.dashUser || window.drivenUser || {};
   var userRole = String(u.role || u.role_name || u.roleName || '').toLowerCase();
-  var canAssignRoles = (userRole === 'admin' || userRole === 'fleet manager' || userRole === 'fleet_manager' || u.can_assign_roles === true || u.is_admin === true);
+  var canAssignRoles = (userRole.indexOf('admin') >= 0 || userRole === 'fleet manager' || userRole === 'fleet_manager' || u.can_assign_roles === true || u.is_admin === true);
   if (!canAssignRoles) { banner.style.display = 'none'; return; }
   var activeAdmins = allEmployees.filter(function(e) {
-    return e.status === 'Active' && (e.role === 'Admin' || (e.role || '').toLowerCase() === 'admin');
+    return e.status === 'Active' && (e.role || '').toLowerCase().indexOf('admin') >= 0;
   }).length;
   banner.style.display = activeAdmins > 0 ? 'none' : 'flex';
 }
@@ -1321,6 +1322,7 @@ function openAddEmpModal() {
   var cdEl = document.getElementById('addEmpCommercialDriver'); if (cdEl) cdEl.value = 'no';
   var dlExpEl = document.getElementById('addEmpDlExp'); if (dlExpEl) dlExpEl.value = '';
   var dcvEl = document.getElementById('addEmpDrivesCoVehicle'); if (dcvEl) dcvEl.value = 'no';
+  var ueaEl = document.getElementById('addEmpUsesEmpAssets'); if (ueaEl) ueaEl.value = 'no';
   document.getElementById('umAddEmpModal').classList.add('active');
 }
 
@@ -1348,6 +1350,7 @@ function openEmpEditModal(id) {
   var cdEl2 = document.getElementById('addEmpCommercialDriver'); if (cdEl2) cdEl2.value = emp.is_commercial_driver === 'yes' ? 'yes' : 'no';
   var dlExpEl2 = document.getElementById('addEmpDlExp'); if (dlExpEl2) dlExpEl2.value = (emp.dl_expiration && emp.dl_expiration !== '\u2014') ? emp.dl_expiration : '';
   var dcvEl2 = document.getElementById('addEmpDrivesCoVehicle'); if (dcvEl2) dcvEl2.value = emp.drives_company_vehicle === 'yes' ? 'yes' : 'no';
+  var ueaEl2 = document.getElementById('addEmpUsesEmpAssets'); if (ueaEl2) ueaEl2.value = emp.uses_employee_assets === 'yes' ? 'yes' : 'no';
   document.getElementById('umAddEmpModal').classList.add('active');
 }
 
@@ -1372,6 +1375,7 @@ async function submitSaveEmployee() {
   var isCD = document.getElementById('addEmpCommercialDriver') ? document.getElementById('addEmpCommercialDriver').value : 'no';
   var dlExp = document.getElementById('addEmpDlExp') ? document.getElementById('addEmpDlExp').value : '';
   var drivesCoVeh = document.getElementById('addEmpDrivesCoVehicle') ? document.getElementById('addEmpDrivesCoVehicle').value : 'no';
+  var usesEmpAssets = document.getElementById('addEmpUsesEmpAssets') ? document.getElementById('addEmpUsesEmpAssets').value : 'no';
 
   // Upload DL photos if selected (uploads to R2 via API)
   var dlFrontKey = '', dlBackKey = '';
@@ -1389,11 +1393,11 @@ async function submitSaveEmployee() {
     return;
   }
 
-  // Warn if deactivating the last active Admin
-  if (status === 'Inactive' && (role === 'Admin' || role === 'admin')) {
+  // Warn if deactivating the last active admin
+  if (status === 'Inactive' && (role || '').toLowerCase().indexOf('admin') >= 0) {
     var otherActiveAdmins = allEmployees.filter(function(e) {
       return String(e.id) !== String(id) && e.status === 'Active' &&
-             (e.role === 'Admin' || (e.role || '').toLowerCase() === 'admin');
+             (e.role || '').toLowerCase().indexOf('admin') >= 0;
     }).length;
     if (otherActiveAdmins === 0) {
       if (!confirm('This is the last active Admin for your organization. You will lose administrative access until another employee is assigned the Admin role. Continue?')) {
@@ -1411,6 +1415,7 @@ async function submitSaveEmployee() {
     is_commercial_driver: isCD,
     dl_expiration: dlExp || undefined,
     drives_company_vehicle: drivesCoVeh,
+    uses_employee_assets: usesEmpAssets,
     dl_photo_front: dlFrontKey || undefined,
     dl_photo_back: dlBackKey || undefined
   };
@@ -1479,6 +1484,26 @@ async function submitSaveEmployee() {
     } catch(e) { console.warn('Notification failed:', e); }
     showToast('Driver flagged as commercial. Safety/Compliance team notified to complete DQF.', 'success');
     checkStep2Reminders();
+  }
+
+  // Notify if employee uses personal vehicle/asset for work
+  if (usesEmpAssets === 'yes' && savedId) {
+    try {
+      await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          org_id: currentUserOrgId,
+          type: 'emp_owned_asset',
+          title: 'Employee Uses Personal Asset — Insurance Required',
+          message: fullStr + ' uses a personal vehicle/asset for work. Collect proof of insurance, carrier, type/limits, and expiration.',
+          target_user_id: null,
+          link: '/app/dashboard/driver-qualification-files.html',
+          created_at: new Date().toISOString()
+        })
+      });
+    } catch(e) { console.warn('Notification failed:', e); }
+    showToast('Employee flagged as using personal asset. Safety/Compliance team notified to collect insurance docs.', 'success');
   }
 }
 
