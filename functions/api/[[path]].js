@@ -1786,6 +1786,33 @@ export async function onRequest(context) {
     }
   }
 
+  // ── Employee-owned-assets + Employee-documents endpoints: proxy to driv-en-api worker ──
+  if (/^\/api\/(employee-owned-assets|employee-documents)(\/|$)/i.test(path)) {
+    try {
+      const apiUrl = new URL(request.url);
+      apiUrl.hostname = 'driv-en-api.driv-en.workers.dev';
+      const reqHeaders = new Headers(request.headers);
+      reqHeaders.set('Host', apiUrl.hostname);
+      const proxyReq = new Request(apiUrl.toString(), {
+        method: request.method,
+        headers: reqHeaders,
+        body: (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : null,
+        redirect: 'follow'
+      });
+      const response = await fetch(proxyReq);
+      const respHeaders = new Headers(response.headers);
+      Object.entries(corsHeaders).forEach(([k, v]) => respHeaders.set(k, v));
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: respHeaders
+      });
+    } catch (err) {
+      console.error('Employee docs proxy error:', err.message);
+      return json({ success: false, error: 'Service unavailable: ' + err.message }, 502, request);
+    }
+  }
+
   // DIRECT DISPATCH: Send DVIR Officer Email via Resend
   if (
     path === '/api/send-dvir-email' || 
