@@ -1,9 +1,11 @@
 /* ============================================================
-   DRIV-EN — Employee Import (user-management-import.js v=1)
+   DRIV-EN — Employee Import (user-management-import.js v=2)
    Import employees from ADP, QuickBooks, Gusto, Paychex, Sage,
    BambooHR, Rippling, Paycor, Paycom or any generic CSV. Provider presets are
    mirrored client-side for the mapping UI; the worker applies
    the authoritative mapping during preview/commit.
+   v=2: template download now uses fetch + Blob (fixes broken
+   download caused by service worker intercepting link navigation).
    ============================================================ */
 (function () {
   'use strict';
@@ -338,6 +340,34 @@
       if (typeof window.loadEmployees === 'function') { try { window.loadEmployees(); } catch (e) {} }
     } catch (e) {
       setStatus('Undo request failed: ' + e.message, 'error');
+    }
+  };
+
+  // ---------- Template download (fetch + Blob, avoids SW/navigation issues) ----------
+  window.umImportDownloadTemplate = async function () {
+    var btn = document.getElementById('umImportTemplateBtn');
+    var old = btn ? btn.textContent : '';
+    if (btn) btn.textContent = 'Downloading…';
+    try {
+      var resp = await fetch('/api/import/template/employees', { method: 'GET' });
+      if (!resp.ok) {
+        var errTxt = '';
+        try { errTxt = (await resp.json()).error || ''; } catch (e) { errTxt = await resp.text(); }
+        setStatus('Template download failed (' + resp.status + (errTxt ? ': ' + errTxt : '') + '). You can also create the file manually — required columns: full_name, email.', 'error');
+        return;
+      }
+      var blob = await resp.blob();
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'employees-template.csv';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    } catch (e) {
+      setStatus('Template download failed: ' + e.message, 'error');
+    } finally {
+      if (btn) btn.textContent = old || '⬇ Download Blank Template';
     }
   };
 
