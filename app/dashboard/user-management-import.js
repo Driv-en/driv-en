@@ -1,5 +1,5 @@
 /* ============================================================
-   DRIV-EN — Employee Import (user-management-import.js v=2)
+   DRIV-EN — Employee Import (user-management-import.js v=3)
    Import employees from ADP, QuickBooks, Gusto, Paychex, Sage,
    BambooHR, Rippling, Paycor, Paycom or any generic CSV. Provider presets are
    mirrored client-side for the mapping UI; the worker applies
@@ -28,7 +28,7 @@
   // Client-side mirror of provider header aliases (for the mapping dropdowns)
   var PROVIDER_MAP = {
     adp:       { 'first name':'full_name','last name':'full_name_last','legal first name':'full_name','legal last name':'full_name_last','work email':'email','email':'email','email address':'email','employee id':'employee_number','associate id':'employee_number','worker id':'employee_number','home phone':'phone','phone':'phone','mobile phone':'phone','work phone':'phone','status':'is_active','hire date':'hire_date','department':'division','job title':'job_title' },
-    quickbooks:{ 'first name':'full_name','last name':'full_name_last','name':'full_name','email':'email','email address':'email','employee number':'employee_number','employee no':'employee_number','phone':'phone','primary phone':'phone','mobile':'phone','active':'is_active','hire date':'hire_date','department':'division','job title':'job_title' },
+    quickbooks:{ 'first name':'full_name','last name':'full_name_last','name':'full_name','employee':'full_name','employee name':'full_name','email':'email','email address':'email','e-mail':'email','employee number':'employee_number','employee no':'employee_number','emp no':'employee_number','phone':'phone','primary phone':'phone','mobile':'phone','phone number':'phone','active':'is_active','hire date':'hire_date','department':'division','job title':'job_title' },
     gusto:     { 'first name':'full_name','last name':'full_name_last','legal first name':'full_name','legal last name':'full_name_last','work email':'email','email':'email','employee id':'employee_number','worker id':'employee_number','home phone':'phone','mobile phone':'phone','phone':'phone','start date':'hire_date','department':'division','job title':'job_title','active':'is_active','status':'is_active' },
     paychex:   { 'employee first name':'full_name','employee last name':'full_name_last','first name':'full_name','last name':'full_name_last','email address':'email','email':'email','work email':'email','employee id':'employee_number','ee id':'employee_number','phone':'phone','home phone':'phone','mobile phone':'phone','hire date':'hire_date','department':'division','job title':'job_title','status':'is_active','active':'is_active' },
     sage:      { 'forename':'full_name','surname':'full_name_last','first name':'full_name','last name':'full_name_last','name':'full_name','email':'email','e-mail':'email','email address':'email','employee number':'employee_number','employee no':'employee_number','personnel number':'employee_number','telephone':'phone','phone':'phone','mobile':'phone','start date':'hire_date','hire date':'hire_date','department':'division','job title':'job_title','active':'is_active','status':'is_active' },
