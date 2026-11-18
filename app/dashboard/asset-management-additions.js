@@ -627,89 +627,62 @@ function clearAddForm() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// HEADER REBUILD — completely clear and rebuild as single row
+// HEADER CLEANUP — remove duplicate header rows (row2/row3/utility)
+// Uses timer-based approach (not MutationObserver) to avoid fighting with dashboard-common.js
 // ═══════════════════════════════════════════════════════════════
+var _amHeaderCleaning = false;
 function amRebuildHeader() {
-  var header = document.getElementById('dashHeader');
-  if (!header) return;
-
-  // Preserve existing logo elements before clearing
-  var logoArea = header.querySelector('#dashCustomerLogoArea');
-  var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img.dash-driven-logo');
-  var title = document.body.getAttribute('data-page-title') || 'Dashboard';
-
-  // Check if already correct (single row, no duplicates)
-  var existingRow1 = header.querySelector('.dash-header-row1');
-  var allH1s = header.querySelectorAll('h1');
-  if (existingRow1 && allH1s.length === 1 && !header.querySelector('.dash-header-row2') && !header.querySelector('.dash-header-row3')) {
-    // Already correct — just make sure title is set
-    var titleEl = document.getElementById('dashPageTitle');
-    if (titleEl) titleEl.textContent = title;
-    return;
-  }
-
-  console.log('[AM-Additions] Rebuilding header as single row');
-
-  // Clear everything
-  header.innerHTML = '';
-
-  // Build single-row header
-  var dashHeader = document.createElement('div');
-  dashHeader.className = 'dash-header';
-
-  var row1 = document.createElement('div');
-  row1.className = 'dash-header-row1';
-
-  // Left: customer logo
-  var left = document.createElement('div');
-  left.className = 'dash-header-logo-left';
-  if (logoArea) {
-    left.appendChild(logoArea);
-  } else {
-    var ph = document.createElement('div');
-    ph.id = 'dashCustomerLogoArea';
-    ph.innerHTML = '<div class="dash-customer-logo-placeholder">No logo uploaded</div>';
-    left.appendChild(ph);
-  }
-  row1.appendChild(left);
-
-  // Center: page title
-  var h1 = document.createElement('h1');
-  h1.id = 'dashPageTitle';
-  h1.className = 'dash-header-title';
-  h1.textContent = title;
-  row1.appendChild(h1);
-
-  // Right: DRIV-EN logo
-  var right = document.createElement('div');
-  right.className = 'dash-header-logo-right';
-  if (drivenLogo) {
-    right.appendChild(drivenLogo);
-  } else {
-    var img = document.createElement('img');
-    img.src = '/assets/logo.png?v=2026';
-    img.className = 'dash-driven-logo';
-    img.alt = 'DRIV-EN Logo';
-    right.appendChild(img);
-  }
-  row1.appendChild(right);
-
-  dashHeader.appendChild(row1);
-  header.appendChild(dashHeader);
-}
-
-// Watch for service worker injecting stale header rows
-if (typeof MutationObserver !== 'undefined') {
-  document.addEventListener('DOMContentLoaded', function() {
+  if (_amHeaderCleaning) return;
+  _amHeaderCleaning = true;
+  try {
     var header = document.getElementById('dashHeader');
-    if (header) {
-      var observer = new MutationObserver(function() {
-        amRebuildHeader();
-      });
-      observer.observe(header, { childList: true, subtree: true });
+    if (!header) return;
+
+    // The correct structure is: #dashHeader > .dash-header > .dash-header-row1
+    // Just remove extra rows — don't clear the whole header (let dashboard-common.js populate it)
+    var dashHeaderDiv = header.querySelector('.dash-header') || header;
+    var row1 = dashHeaderDiv.querySelector('.dash-header-row1');
+    if (row1) {
+      var siblings = dashHeaderDiv.children;
+      for (var i = siblings.length - 1; i >= 0; i--) {
+        if (siblings[i] !== row1) {
+          console.log('[AM-Additions] Removing duplicate header element:', siblings[i].tagName, siblings[i].className || '(no class)');
+          siblings[i].remove();
+        }
+      }
     }
-  });
+    // Also remove any extra children of #dashHeader that aren't .dash-header
+    var headerChildren = header.children;
+    for (var i = headerChildren.length - 1; i >= 0; i--) {
+      if (headerChildren[i] !== dashHeaderDiv) {
+        console.log('[AM-Additions] Removing extra header child:', headerChildren[i].tagName, headerChildren[i].className || '(no class)');
+        headerChildren[i].remove();
+      }
+    }
+    // Remove duplicate #dashPageTitle elements
+    var allTitles = document.querySelectorAll('#dashPageTitle');
+    if (allTitles.length > 1) {
+      for (var i = 1; i < allTitles.length; i++) allTitles[i].remove();
+    }
+    // Set the page title
+    var titleEl = document.getElementById('dashPageTitle');
+    if (titleEl) {
+      var title = document.body.getAttribute('data-page-title') || 'Asset Management';
+      titleEl.textContent = title;
+    }
+  } catch(e) {
+    console.error('[AM-Additions] Header cleanup error:', e);
+  }
+  _amHeaderCleaning = false;
 }
+
+// Run header cleanup on timers (not MutationObserver — that fights with dashboard-common.js)
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(amRebuildHeader, 800);
+  setTimeout(amRebuildHeader, 1500);
+  setTimeout(amRebuildHeader, 3000);
+  setTimeout(amRebuildHeader, 5000);
+});
 
 // ═══════════════════════════════════════════════════════════════
 // ── Map asset filter: "All Assets" shows all pins, specific asset shows breadcrumb trail ──
