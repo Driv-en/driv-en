@@ -135,6 +135,12 @@ function updateKpis() {
   document.getElementById('kpiCurrent').textContent = allDrivers.filter(function(d) {
     return d.step2_status === 'complete' && !['driving_record_status','medical_card_status','background_check_status','drug_test_status','auto_policy_status'].some(function(k) { return d[k] === 'expired' || d[k] === '7day' || d[k] === '30day'; });
   }).length;
+  // Documents Needed: drivers missing one or more required documents
+  var docsNeeded = allDrivers.filter(function(d) {
+    return !d.dl_photo_front || !d.dl_photo_back || !d.driving_record_doc || !d.medical_card_doc || !d.dqf_application_doc;
+  }).length;
+  var docsEl = document.getElementById('kpiDocsNeeded');
+  if (docsEl) docsEl.textContent = docsNeeded;
 }
 
 function checkReminders() {
@@ -216,6 +222,17 @@ function renderDriverTable() {
       else if (col.key === 'cdl_class') cells += '<td>' + esc(d.cdl_class && d.cdl_class !== 'none' ? d.cdl_class : '\u2014') + '</td>';
       else if (col.key === 'actions') cells += '<td><button class="dqf-row-action" onclick="openDriverProfile(\'' + esc(d.id) + '\')">Open File</button></td>';
       else if (col.key === 'step2_status') cells += '<td>' + fileStatusBadge(d.step2_status) + '</td>';
+      else if (col.key === 'documents') {
+        var docCount = 0; var docTotal = 5;
+        if (d.dl_photo_front) docCount++;
+        if (d.dl_photo_back) docCount++;
+        if (d.driving_record_doc) docCount++;
+        if (d.medical_card_doc) docCount++;
+        if (d.dqf_application_doc) docCount++;
+        var docColor = docCount === docTotal ? '#16a34a' : docCount === 0 ? '#dc2626' : '#d97706';
+        var docBg = docCount === docTotal ? '#dcfce7' : docCount === 0 ? '#fee2e2' : '#fef3c7';
+        cells += '<td style="text-align:center;"><span style="background:' + docBg + '; color:' + docColor + '; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600; white-space:nowrap;" title="DL Front, DL Back, Driving Record, Medical Card, Application">' + docCount + '/' + docTotal + '</span></td>';
+      }
       else cells += '<td>' + badge(d[col.key]) + '</td>';
     });
     tr.innerHTML = cells;
@@ -270,6 +287,7 @@ var DQF_COL_DEFS = [
   { key: 'drug_test_status', label: 'Drug Test', w: 100 },
   { key: 'background_check_status', label: 'Background', w: 130 },
   { key: 'auto_policy_status', label: 'Auto Policy', w: 100 },
+  { key: 'documents', label: 'Docs', w: 70 },
   { key: 'step2_status', label: 'File Status', w: 100 },
   { key: 'actions', label: 'Actions', w: 100 }
 ];
