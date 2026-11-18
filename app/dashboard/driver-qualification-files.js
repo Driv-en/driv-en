@@ -448,22 +448,34 @@ function renderProfile(d) {
   if (!name.trim()) name = d.full_name || 'Driver';
   var endorsements = (d.cdl_endorsements || '').split(',').filter(Boolean);
   var endoHtml = ['air_brakes','hazmat','tanker','passenger','doubles','school_bus'].map(function(v) {
-    return '<label><input type="checkbox" id="p_cdl_' + v + '" value="' + v + '"' + (endorsements.includes(v) ? ' checked' : '') + '> ' + v.replace('_',' ').replace(/\b\w/g,function(c){return c.toUpperCase()}) + '</label>';
+    var label = CDL_ENDORS_LABELS[v] || v.replace('_',' ').replace(/\b\w/g,function(c){return c.toUpperCase()});
+    return '<label><input type="checkbox" id="p_cdl_' + v + '" value="' + v + '"' + (endorsements.includes(v) ? ' checked' : '') + '> ' + label + '</label>';
   }).join(' ');
 
-  var html = '<h2 style="margin:0 0 4px 0;font-size:20px;color:var(--text,#0f172a);">' + esc(name) + '</h2>';
-  html += '<p style="margin:0 0 16px 0;font-size:13px;color:var(--text-muted,#64748b);">Employee #: ' + esc(d.employee_number || d.user_id || '—') + ' &nbsp;|&nbsp; CDL: ' + esc(d.cdl_class || 'None') + '</p>';
+  var html = '<div class="dqf-section" style="padding:12px 16px; margin-bottom:16px;"><div class="dqf-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">' +
+    '<div class="dqf-field"><label style="font-size:11px;color:var(--text-muted,#64748b);">Employee Name</label><div style="font-weight:600;font-size:15px;color:var(--text,#0f172a);">' + esc(name) + '</div></div>' +
+    '<div class="dqf-field"><label style="font-size:11px;color:var(--text-muted,#64748b);">Employee #</label><div style="font-size:14px;color:var(--text,#0f172a);">' + esc(d.employee_number || d.user_id || '—') + '</div></div>' +
+    '<div class="dqf-field"><label style="font-size:11px;color:var(--text-muted,#64748b);">CDL Class</label><div style="font-size:14px;color:var(--text,#0f172a);">' + esc(d.cdl_class || '—') + '</div></div>' +
+    '<div class="dqf-field"><label style="font-size:11px;color:var(--text-muted,#64748b);">Email</label><div style="font-size:14px;color:var(--text,#0f172a);word-break:break-all;">' + esc(d.email || '—') + '</div></div>' +
+    '</div></div>';
+
+  // Missing documents banner
+  var missingDocs = checkMissingDocuments(d);
+  if (missingDocs.length > 0) {
+    html += '<div style="margin-bottom:16px; padding:10px 14px; background:#fef3c7; border:1px solid #fbbf24; border-radius:8px; font-size:13px; color:#92400e;">' +
+      '<strong>⚠️ Missing Documents:</strong> ' + missingDocs.join(', ') + '. The file cannot be marked complete until these are uploaded.</div>';
+  }
 
   // Driver Compliance
   html += '<div class="dqf-section"><div class="dqf-section-title">&#128663; Driver Compliance</div>';
   html += '<div class="dqf-grid">';
   html += '<div class="dqf-field"><label>Authorized to Drive Company Vehicle?</label><select id="p_auth"><option value="">-- Select --</option><option value="yes"' + (d.authorized_company_vehicle === 'yes' ? ' selected' : '') + '>Yes</option><option value="no"' + (d.authorized_company_vehicle === 'no' ? ' selected' : '') + '>No</option></select></div>';
-  html += '<div class="dqf-field"><label>CDL Class</label><select id="p_cdl_class"><option value="none"' + (!d.cdl_class || d.cdl_class === 'none' ? ' selected' : '') + '>No CDL</option><option value="A"' + (d.cdl_class === 'A' ? ' selected' : '') + '>Class A</option><option value="B"' + (d.cdl_class === 'B' ? ' selected' : '') + '>Class B</option><option value="C"' + (d.cdl_class === 'C' ? ' selected' : '') + '>Class C</option></select></div>';
+  html += '<div class="dqf-field"><label>CDL Class</label><select id="p_cdl_class" onchange="updateCdlEndorsements()"><option value=""' + (!d.cdl_class || d.cdl_class === 'none' ? ' selected' : '') + '>-- Select --</option><option value="A"' + (d.cdl_class === 'A' ? ' selected' : '') + '>Class A</option><option value="B"' + (d.cdl_class === 'B' ? ' selected' : '') + '>Class B</option></select></div>';
   html += '</div>';
-  html += '<div class="dqf-field dqf-field-full" style="margin-top:12px;"><label>CDL Endorsements</label><div style="display:flex;flex-wrap:wrap;gap:10px;font-size:13px;">' + endoHtml + '</div></div>';
+  html += '<div class="dqf-field dqf-field-full" style="margin-top:12px;"><label>CDL Endorsements</label><div id="p_cdl_endorsements_container" style="display:flex;flex-wrap:wrap;gap:10px;font-size:13px;">' + endoHtml + '</div></div>';
   html += '<div class="dqf-grid" style="margin-top:12px;">';
-  html += '<div class="dqf-field"><label>DL Front Photo</label><div class="dqf-file-row"><input type="file" id="p_dl_front" accept="image/*"><div class="dqf-file-placeholder">&#128247;</div></div></div>';
-  html += '<div class="dqf-field"><label>DL Back Photo</label><div class="dqf-file-row"><input type="file" id="p_dl_back" accept="image/*"><div class="dqf-file-placeholder">&#128247;</div></div></div>';
+  html += '<div class="dqf-field"><label>DL Front Photo</label><div class="dqf-file-row"><input type="file" id="p_dl_front" accept="image/*" capture="environment" style="flex:1;min-width:0;">' + (d.dl_photo_front ? ' <button type="button" onclick="dqfOpenDocViewer(\'DL Front Photo\',\'' + esc(d.dl_photo_front) + '\')" style="padding:4px 10px; background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap;">👁 View</button>' : '') + '</div></div>';
+  html += '<div class="dqf-field"><label>DL Back Photo</label><div class="dqf-file-row"><input type="file" id="p_dl_back" accept="image/*" capture="environment" style="flex:1;min-width:0;">' + (d.dl_photo_back ? ' <button type="button" onclick="dqfOpenDocViewer(\'DL Back Photo\',\'' + esc(d.dl_photo_back) + '\')" style="padding:4px 10px; background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap;">👁 View</button>' : '') + '</div></div>';
   html += '</div></div>';
 
   // Driving Record
@@ -472,7 +484,7 @@ function renderProfile(d) {
   html += '<div class="dqf-field"><label>Verified Date</label><input type="date" id="p_dr_verified" value="' + esc(d.driving_record_verified || '') + '"></div>';
   html += '<div class="dqf-field"><label>Recheck Date</label><input type="date" id="p_dr_recheck" value="' + esc(d.driving_record_recheck_date || '') + '"></div>';
   html += '</div>';
-  html += '<div class="dqf-field dqf-field-full" style="margin-top:12px;"><label>Driving Record Document</label><div class="dqf-file-row"><input type="file" id="p_dr_doc" accept="image/*,application/pdf"><div class="dqf-file-placeholder">&#128247;</div></div></div>';
+  html += '<div class="dqf-field dqf-field-full" style="margin-top:12px;"><label>Driving Record Document</label><div class="dqf-file-row"><input type="file" id="p_dr_doc" accept="image/*,application/pdf" capture="environment" style="flex:1;min-width:0;">' + (d.driving_record_doc ? ' <button type="button" onclick="dqfOpenDocViewer(\'Driving Record\',\'' + esc(d.driving_record_doc) + '\')" style="padding:4px 10px; background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap;">👁 View</button>' : '') + '</div></div>';
   html += '</div>';
 
   // Medical Card
@@ -480,7 +492,7 @@ function renderProfile(d) {
   html += '<div class="dqf-grid">';
   html += '<div class="dqf-field"><label>Expiration Date</label><input type="date" id="p_med_exp" value="' + esc(d.medical_card_expiration || '') + '"></div>';
   html += '</div>';
-  html += '<div class="dqf-field dqf-field-full" style="margin-top:12px;"><label>Medical Card Document</label><div class="dqf-file-row"><input type="file" id="p_med_doc" accept="image/*,application/pdf"><div class="dqf-file-placeholder">&#128247;</div></div></div>';
+  html += '<div class="dqf-field dqf-field-full" style="margin-top:12px;"><label>Medical Card Document</label><div class="dqf-file-row"><input type="file" id="p_med_doc" accept="image/*,application/pdf" capture="environment" style="flex:1;min-width:0;">' + (d.medical_card_doc ? ' <button type="button" onclick="dqfOpenDocViewer(\'Medical Card\',\'' + esc(d.medical_card_doc) + '\')" style="padding:4px 10px; background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap;">👁 View</button>' : '') + '</div></div>';
   html += '</div>';
 
   // Background Check
@@ -500,7 +512,7 @@ function renderProfile(d) {
   // Employee-Owned Assets
   html += '<div class="dqf-section"><div class="dqf-section-title">&#128666; Employee-Owned Assets</div>';
   html += '<div class="dqf-toggle-row"><label>Will this driver provide personal assets for business use?</label>';
-  html += '<div class="dqf-toggle"><input type="checkbox" id="p_has_assets" onchange="toggleDqfAssets()"><span class="dqf-toggle-slider"></span></div></div>';
+  html += '<label class="dqf-toggle"><input type="checkbox" id="p_has_assets" onchange="toggleDqfAssets()"><span class="dqf-toggle-slider"></span></label></div>';
   html += '<div id="p_assets_container" style="display:none;">';
   html += '<button class="dqf-btn dqf-btn-save" style="margin-bottom:12px;" onclick="addDqfAssetCard()">&#43; Add Asset</button>';
   html += '<div id="p_assets_list"></div>';
@@ -513,7 +525,7 @@ function renderProfile(d) {
   // 391.21 — Application for Employment
   html += '<div class="dqf-grid" style="margin-bottom:16px;">';
   html += '<div class="dqf-field"><label>Application for Employment — Date Signed (391.21)</label><input type="date" id="p_dqf_application_date" value="' + esc(d.dqf_application_date || '') + '"></div>';
-  html += '<div class="dqf-field"><label>Application Document</label><div class="dqf-file-row"><input type="file" id="p_dqf_application_doc" accept="image/*,application/pdf"><span class="um-status-badge ' + (d.dqf_application_doc ? 'um-status-current' : 'um-status-none') + '">' + (d.dqf_application_doc ? 'On File' : 'Missing') + '</span></div></div>';
+  html += '<div class="dqf-field"><label>Application Document</label><div class="dqf-file-row"><input type="file" id="p_dqf_application_doc" accept="image/*,application/pdf" capture="environment" style="flex:1;min-width:0;">' + (d.dqf_application_doc ? ' <button type="button" onclick="dqfOpenDocViewer(\'Application Document\',\'' + esc(d.dqf_application_doc) + '\')" style="padding:4px 10px; background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap;">👁 View</button>' : '') + '<span class="um-status-badge ' + (d.dqf_application_doc ? 'um-status-current' : 'um-status-none') + '">' + (d.dqf_application_doc ? 'On File' : 'Missing') + '</span></div></div>';
   html += '</div>';
 
   // 391.23 — Previous Employment Verification (3-year history)
@@ -574,7 +586,7 @@ function renderProfile(d) {
   // 391.23(h) — Safety Performance History (drug/alcohol from prior employers)
   html += '<div class="dqf-grid" style="margin-bottom:16px;">';
   html += '<div class="dqf-field"><label>Safety Performance History — Date (391.23(h))</label><input type="date" id="p_dqf_safety_perf_date" value="' + esc(d.dqf_safety_perf_date || '') + '"></div>';
-  html += '<div class="dqf-field"><label>Drug/Alcohol Test Results from Prior Employers</label><select id="p_dqf_safety_perf_result"><option value="">—</option><option value="none"' + (d.dqf_safety_perf_result==='none'?' selected':'') + '>No Positive/Refused</option><option value="positive"' + (d.dqf_safety_perf_result==='positive'?' selected':'') + '>Positive/Refused Reported</option><option value="pending"' + (d.dqf_safety_perf_result==='pending'?' selected':'') + '>Pending</option></select></div>';
+  html += '<div class="dqf-field"><label>Drug/Alcohol Test Results from Prior Employers</label><select id="p_dqf_safety_perf_result"><option value="">—</option><option value="none"' + (d.dqf_safety_perf_result==='none'?' selected':'') + '>No Violations</option><option value="positive"' + (d.dqf_safety_perf_result==='positive'?' selected':'') + '>Positive Test(s) on Record</option><option value="refused"' + (d.dqf_safety_perf_result==='refused'?' selected':'') + '>Refusal(s) on Record</option><option value="positive_refused"' + (d.dqf_safety_perf_result==='positive_refused'?' selected':'') + '>Positive & Refusal(s) on Record</option><option value="pending"' + (d.dqf_safety_perf_result==='pending'?' selected':'') + '>Pending Inquiry</option></select></div>';
   html += '</div>';
 
   // TSA 1572 — Hazmat Background
@@ -598,15 +610,110 @@ function renderProfile(d) {
   html += '</div>';
 
   document.getElementById('dqfProfileContent').innerHTML = html;
+  // Filter endorsements based on current CDL class
+  setTimeout(function() { updateCdlEndorsements(); }, 0);
 }
 
 // ============================================================
-// ASSETS
+// DOCUMENT VIEWER & UPLOAD
+// ============================================================
+function dqfOpenDocViewer(title, key) {
+  var modal = document.getElementById('dqfDocViewerModal');
+  var titleEl = document.getElementById('dqfDocViewerTitle');
+  var body = document.getElementById('dqfDocViewerBody');
+  if (!modal || !body) return;
+  titleEl.textContent = title || 'Document';
+  body.innerHTML = '<p style="padding:40px; color:var(--text-muted,#64748b);">Loading document…</p>';
+  modal.classList.add('active');
+  var url = '/api/employee-documents/' + encodeURIComponent(key);
+  fetch(url).then(function(resp) {
+    if (!resp.ok) throw new Error('Document not found');
+    var ct = resp.headers.get('Content-Type') || '';
+    if (ct.indexOf('image/') === 0) {
+      return resp.blob().then(function(blob) {
+        var imgUrl = URL.createObjectURL(blob);
+        body.innerHTML = '<img src="' + imgUrl + '" style="max-width:100%; max-height:70vh; border-radius:8px;" onload="this.parentElement.style.textAlign=\'center\'">';
+      });
+    } else if (ct.indexOf('pdf') !== -1) {
+      return resp.blob().then(function(blob) {
+        var pdfUrl = URL.createObjectURL(blob);
+        body.innerHTML = '<iframe src="' + pdfUrl + '" style="width:100%; height:70vh; border:1px solid var(--border,#e2e8f0); border-radius:8px;"></iframe>';
+      });
+    } else {
+      return resp.blob().then(function(blob) {
+        var dlUrl = URL.createObjectURL(blob);
+        body.innerHTML = '<p>Unsupported preview. <a href="' + dlUrl + '" download="' + (title||'document') + '" style="color:#2563eb;">Download file</a></p>';
+      });
+    }
+  }).catch(function(e) {
+    body.innerHTML = '<p style="padding:40px; color:#dc2626;">Error: ' + esc(e.message) + '</p>';
+  });
+}
+
+function dqfCloseDocViewer() {
+  var modal = document.getElementById('dqfDocViewerModal');
+  if (modal) modal.classList.remove('active');
+  var body = document.getElementById('dqfDocViewerBody');
+  if (body) body.innerHTML = '';
+}
+
+// Upload a single document to R2, return the R2 key
+async function uploadDocToR2(file, docType, empId) {
+  if (!file || !file.size) return null;
+  var formData = new FormData();
+  formData.append('file', file);
+  formData.append('docType', docType);
+  formData.append('empId', empId);
+  var resp = await fetch('/api/employee-documents/upload', { method: 'POST', body: formData });
+  var data = await resp.json();
+  if (!resp.ok || !data.success) throw new Error(data.error || 'Upload failed');
+  return data.key;
+}
+
+// Check if required documents are present, return list of missing ones
+function checkMissingDocuments(d) {
+  var missing = [];
+  if (!d.dl_photo_front) missing.push('DL Front Photo');
+  if (!d.dl_photo_back) missing.push('DL Back Photo');
+  if (!d.driving_record_doc) missing.push('Driving Record Document');
+  if (!d.medical_card_doc) missing.push('Medical Card Document');
+  if (!d.dqf_application_doc) missing.push('Application Document');
+  return missing;
+}
+
+
 // ============================================================
 function toggleDqfAssets() {
   var cb = document.getElementById('p_has_assets');
   var container = document.getElementById('p_assets_container');
   if (cb && container) container.style.display = cb.checked ? 'block' : 'none';
+}
+
+// CDL endorsements available per class
+var CDL_ENDORSEMENTS = {
+  A: ['air_brakes','hazmat','tanker','passenger','doubles','school_bus'],
+  B: ['air_brakes','hazmat','tanker','passenger','school_bus']
+};
+var CDL_ENDORS_LABELS = {
+  air_brakes: 'Air Brakes', hazmat: 'Hazmat (H)', tanker: 'Tanker (N)',
+  passenger: 'Passenger (P)', doubles: 'Doubles/Triples (T)', school_bus: 'School Bus (S)'
+};
+
+function updateCdlEndorsements() {
+  var cdlClass = (document.getElementById('p_cdl_class') || {}).value;
+  var container = document.getElementById('p_cdl_endorsements_container');
+  if (!container) return;
+  var allowed = CDL_ENDORSEMENTS[cdlClass] || [];
+  var checkboxes = container.querySelectorAll('input[type=checkbox]');
+  checkboxes.forEach(function(cb) {
+    var label = cb.parentElement;
+    if (allowed.includes(cb.value)) {
+      label.style.display = '';
+    } else {
+      label.style.display = 'none';
+      cb.checked = false;
+    }
+  });
 }
 
 function loadDriverAssets(driverId) {
@@ -655,8 +762,8 @@ function addDqfAssetCard(existing) {
         '<div class="dqf-field"><label>Insurance Policy #</label><input type="text" id="' + cid + '_ins_policy" value="' + esc(a.insurance_policy_num || '') + '"></div>' +
         '<div class="dqf-field"><label>Insurance Expiration</label><input type="date" id="' + cid + '_ins_exp" value="' + esc(a.insurance_expiration || '') + '"></div>' +
       '</div>' +
-      '<div class="dqf-field dqf-field-full" style="margin-top:8px;"><label>Insurance Document</label><div class="dqf-file-row"><input type="file" id="' + cid + '_ins_doc" accept="image/*,application/pdf"><div class="dqf-file-placeholder">&#128247;</div></div></div>' +
-      '<div class="dqf-field dqf-field-full" style="margin-top:8px;"><label>Registration Document</label><div class="dqf-file-row"><input type="file" id="' + cid + '_reg_doc" accept="image/*,application/pdf"><div class="dqf-file-placeholder">&#128247;</div></div></div>' +
+       '<div class="dqf-field dqf-field-full" style="margin-top:8px;"><label>Insurance Document</label><div class="dqf-file-row"><input type="file" id="' + cid + '_ins_doc" accept="image/*,application/pdf" capture="environment" style="flex:1;min-width:0;"></div></div>' +
+       '<div class="dqf-field dqf-field-full" style="margin-top:8px;"><label>Registration Document</label><div class="dqf-file-row"><input type="file" id="' + cid + '_reg_doc" accept="image/*,application/pdf" capture="environment" style="flex:1;min-width:0;"></div></div>' +
       '<div class="dqf-field" style="margin-top:8px;"><label>Registration Expiration</label><input type="date" id="' + cid + '_reg_exp" value="' + esc(a.registration_exp || '') + '"></div>' +
     '</div>' +
     '<div class="dqf-field dqf-field-full" style="margin-top:8px;"><label>Notes</label><textarea id="' + cid + '_notes" rows="2">' + esc(a.notes || '') + '</textarea></div>' +
@@ -762,6 +869,36 @@ async function saveDqfProfile(complete) {
     }
   });
   if (hasVehicle) payload.auto_policy_status = calcStatus(earliestIns);
+
+  // Upload documents to R2 (if new files selected)
+  var docFields = [
+    { inputId: 'p_dl_front', fieldName: 'dl_photo_front', docType: 'dl_front' },
+    { inputId: 'p_dl_back', fieldName: 'dl_photo_back', docType: 'dl_back' },
+    { inputId: 'p_dr_doc', fieldName: 'driving_record_doc', docType: 'driving_record' },
+    { inputId: 'p_med_doc', fieldName: 'medical_card_doc', docType: 'medical_card' },
+    { inputId: 'p_dqf_application_doc', fieldName: 'dqf_application_doc', docType: 'application' }
+  ];
+  for (var di = 0; di < docFields.length; di++) {
+    var df = docFields[di];
+    var fileInput = document.getElementById(df.inputId);
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      try {
+        var key = await uploadDocToR2(fileInput.files[0], df.docType, currentDriverId);
+        if (key) payload[df.fieldName] = key;
+      } catch(e) { console.warn('Doc upload failed (' + df.docType + '):', e); }
+    } else if (currentDriver && currentDriver[df.fieldName]) {
+      // Keep existing document key
+      payload[df.fieldName] = currentDriver[df.fieldName];
+    }
+  }
+
+  // Document status logic: if required documents are missing, file is incomplete
+  var docCheckDriver = Object.assign({}, currentDriver || {}, payload);
+  var missingDocs = checkMissingDocuments(docCheckDriver);
+  if (missingDocs.length > 0) {
+    payload.step2_status = 'incomplete';
+    complete = false; // Can't mark as complete if documents are missing
+  }
 
   try {
     await fetch('/api/employees/' + encodeURIComponent(currentDriverId), {
