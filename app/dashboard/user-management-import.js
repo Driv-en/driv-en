@@ -1,7 +1,7 @@
 /* ============================================================
    DRIV-EN — Employee Import (user-management-import.js v=1)
    Import employees from ADP, QuickBooks, Gusto, Paychex, Sage,
-   BambooHR, Rippling, or any generic CSV. Provider presets are
+   BambooHR, Rippling, Paycor, Paycom or any generic CSV. Provider presets are
    mirrored client-side for the mapping UI; the worker applies
    the authoritative mapping during preview/commit.
    ============================================================ */
@@ -32,6 +32,8 @@
     sage:      { 'forename':'full_name','surname':'full_name_last','first name':'full_name','last name':'full_name_last','name':'full_name','email':'email','e-mail':'email','email address':'email','employee number':'employee_number','employee no':'employee_number','personnel number':'employee_number','telephone':'phone','phone':'phone','mobile':'phone','start date':'hire_date','hire date':'hire_date','department':'division','job title':'job_title','active':'is_active','status':'is_active' },
     bamboohr:  { 'first name':'full_name','last name':'full_name_last','preferred name':'full_name','work email':'email','email':'email','home email':'email','employee id':'employee_number','id':'employee_number','home phone':'phone','work phone':'phone','mobile phone':'phone','phone':'phone','hire date':'hire_date','date of hire':'hire_date','department':'division','job title':'job_title','status':'is_active','active':'is_active' },
     rippling:  { 'first name':'full_name','last name':'full_name_last','legal first name':'full_name','legal last name':'full_name_last','work email':'email','email':'email','employee id':'employee_number','worker id':'employee_number','id':'employee_number','work phone':'phone','mobile phone':'phone','phone':'phone','start date':'hire_date','hire date':'hire_date','department':'division','job title':'job_title','active':'is_active','status':'is_active' },
+    paycom:   { 'first name':'full_name','last name':'full_name_last','legal first name':'full_name','legal last name':'full_name_last','work email':'email','email':'email','email address':'email','personal email':'email','employee id':'employee_number','ee id':'employee_number','worker id':'employee_number','home phone':'phone','mobile phone':'phone','work phone':'phone','phone':'phone','hire date':'hire_date','date of hire':'hire_date','department':'division','job title':'job_title','status':'is_active','active':'is_active','employment status':'is_active' },
+    paycor:    { 'first name':'full_name','last name':'full_name_last','email':'email','work email':'email','email address':'email','employee id':'employee_number','employee number':'employee_number','ee id':'employee_number','phone':'phone','home phone':'phone','mobile phone':'phone','work phone':'phone','hire date':'hire_date','date of hire':'hire_date','department':'division','job title':'job_title','status':'is_active','active':'is_active','employment status':'is_active' },
     generic:   { 'full name':'full_name','name':'full_name','employee name':'full_name','first name':'full_name','last name':'full_name_last','email':'email','e-mail':'email','email address':'email','work email':'email','employee number':'employee_number','employee id':'employee_number','employee no':'employee_number','id':'employee_number','phone':'phone','phone number':'phone','mobile':'phone','mobile phone':'phone','telephone':'phone','cell':'phone','role':'role_id','title':'job_title','job title':'job_title','position':'job_title','active':'is_active','status':'is_active','hire date':'hire_date','start date':'hire_date','hired':'hire_date','department':'division','division':'division','commercial driver':'is_commercial_driver','cdl':'is_commercial_driver' }
   };
 
@@ -222,7 +224,7 @@
     if (!el) return;
     el.style.display = 'block';
 
-    var provLabel = { adp:'ADP', quickbooks:'QuickBooks', gusto:'Gusto', paychex:'Paychex', sage:'Sage', bamboohr:'BambooHR', rippling:'Rippling', generic:'generic CSV' }[data.detected_provider] || data.detected_provider;
+    var provLabel = { adp:'ADP', quickbooks:'QuickBooks', gusto:'Gusto', paychex:'Paychex', paycom:'Paycom', paycor:'Paycor', sage:'Sage', bamboohr:'BambooHR', rippling:'Rippling', generic:'generic CSV' }[data.detected_provider] || data.detected_provider;
 
     var html = '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">';
     html += '<div style="padding:10px 14px; border-radius:6px; background:#dcfce7; color:#166534; font-size:13px;"><b>' + data.valid_count + '</b> ready to import</div>';
