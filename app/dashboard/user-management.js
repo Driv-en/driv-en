@@ -34,31 +34,32 @@ var sortState = {
 // ============================================================
 var MODAL_CONTENT_MAP = {
   overview: {
-    purpose: 'The <strong>Overview Tab</strong> provides a high-level summary of your workforce. It displays key metrics for active employees and those on leave, giving administrators a quick snapshot of staffing status.',
-    instructions: '<ol><li><strong>Monitor Workforce Metrics:</strong> View live counts for Active Employees and Employees on Leave. Click any KPI card to jump to the relevant filtered view.</li><li><strong>Navigate Tabs:</strong> Use the tab bar above to switch between Employees, Roles &amp; Permissions, System Users, and Activity Log.</li><li><strong>Account Management:</strong> Review your logged-in credentials in the welcome bar and use <strong>Change Password</strong> to update your login.</li><li><strong>Workspace Customization:</strong> Use the Light/Dark mode switch in the welcome bar to adjust visual preferences.</li></ol>'
+    purpose: 'The <strong>Overview Tab</strong> is your landing page. It displays key metrics (Active Employees, Roles) and provides card-based navigation to every section of the Employee Management module. The <strong>Information Links</strong> card gives quick access to System Users and the Activity Log.',
+    instructions: '<ol><li><strong>Navigate:</strong> Click any card in the <strong>Module Sections</strong> grid to jump to that section (Employees, Roles &amp; Permissions, System Users, Activity Log).</li><li><strong>Quick Access:</strong> The <strong>Information Links</strong> card provides direct shortcuts to System Users and the Activity Log.</li><li><strong>KPI Cards:</strong> Click the <strong>Active Employees</strong> or <strong>Roles</strong> KPI card to jump to the relevant section.</li><li><strong>Account:</strong> Review your credentials in the welcome card and use <strong>Change Password</strong> to update your login.</li><li><strong>Preferences:</strong> Use the <strong>Units of Measure</strong> and <strong>Language</strong> selectors in the welcome card to set your preferences. Toggle <strong>Light/Dark</strong> mode with the switch.</li><li><strong>Return:</strong> Every sub-section has a <strong>&#8592; Back to Overview</strong> button to return here.</li></ol>'
   },
   employees: {
     purpose: 'The <strong>Employees Tab</strong> is the central directory for managing all employee records. Administrators can add, edit, view, search, filter, sort, export, and print employee information.',
-    instructions: '<ol><li><strong>Search:</strong> Use the search bar to find employees by name, email, employee number, role, phone, or state.</li><li><strong>Filter:</strong> Use the Statuses and Roles dropdowns to filter by employment status or role.</li><li><strong>Add Employee:</strong> Click <strong>+ Add Employee</strong> to open the form modal. Fill in all required fields (First Name, Last Name) and optional fields, then click <strong>Save Employee</strong>.</li><li><strong>Edit Employee:</strong> Click the <strong>Edit</strong> button on any row to modify an existing employee record.</li><li><strong>View Details:</strong> Click <strong>View</strong> to see a read-only detail modal for any employee.</li><li><strong>Columns:</strong> Click <strong>Columns (Show / Hide)</strong> to toggle visibility of individual columns. Drag column headers to reorder. Drag column edges to resize.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print</strong> to select specific records or print all visible rows.</li></ol>'
+    instructions: '<ol><li><strong>Search:</strong> Use the search bar to find employees by name, email, employee number, role, phone, or state.</li><li><strong>Filter:</strong> Use the Statuses and Roles dropdowns to filter by employment status or role.</li><li><strong>Add Employee:</strong> Click <strong>+ Add Employee</strong> to open the form modal. Fill in all required fields (First Name, Last Name) and optional fields, then click <strong>Save Employee</strong>.</li><li><strong>Edit Employee:</strong> Click the <strong>Edit</strong> button on any row to modify an existing employee record.</li><li><strong>View Details:</strong> Click <strong>View</strong> to see a read-only detail modal for any employee.</li><li><strong>Columns:</strong> Click <strong>Columns (Show / Hide)</strong> to toggle visibility of individual columns. Drag column headers to reorder. Drag column edges to resize.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print</strong> to select specific records or print all visible rows.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Overview</strong> to return to the Overview landing page.</li></ol>'
   },
   roles: {
     purpose: 'The <strong>Roles &amp; Permissions Tab</strong> displays all roles defined for your organization. This includes system roles (locked) and custom roles created during onboarding or by administrators.',
-    instructions: '<ol><li><strong>Review Roles:</strong> The table shows each role name, description, and whether it is a system-defined role.</li><li><strong>Sort:</strong> Click any column header to sort the table by that column. Click again to reverse the sort direction.</li><li><strong>Print:</strong> Click <strong>Print Roles &amp; Permissions</strong> to print the full roles table.</li><li><strong>Column Resize:</strong> Drag the edge of any column header to adjust its width.</li></ol>'
+    instructions: '<ol><li><strong>Review Roles:</strong> The table shows each role name, description, and whether it is a system-defined role.</li><li><strong>Sort:</strong> Click any column header to sort the table by that column. Click again to reverse the sort direction.</li><li><strong>Print:</strong> Click <strong>Print Roles &amp; Permissions</strong> to print the full roles table.</li><li><strong>Column Resize:</strong> Drag the edge of any column header to adjust its width.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Overview</strong> to return to the Overview landing page.</li></ol>'
   },
   users: {
     purpose: 'The <strong>System Users Tab</strong> manages all user accounts that have login access to the DRIV-EN platform. This includes their authentication status, role assignments, and security settings.',
-    instructions: '<ol><li><strong>Search:</strong> Use the search bar to find users by name, email, or role.</li><li><strong>Filter:</strong> Use the Statuses and Roles dropdowns to filter by account status or assigned role.</li><li><strong>View Details:</strong> Click <strong>View</strong> on any row to see the user account details modal.</li><li><strong>Columns:</strong> Click <strong>Columns (Show / Hide)</strong> to toggle visibility of individual columns. Drag column headers to reorder. Drag column edges to resize.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print</strong> to select specific records or print all visible rows.</li></ol>'
+    instructions: '<ol><li><strong>Search:</strong> Use the search bar to find users by name, email, or role.</li><li><strong>Filter:</strong> Use the Statuses and Roles dropdowns to filter by account status or assigned role.</li><li><strong>View Details:</strong> Click <strong>View</strong> on any row to see the user account details modal.</li><li><strong>Columns:</strong> Click <strong>Columns (Show / Hide)</strong> to toggle visibility of individual columns. Drag column headers to reorder. Drag column edges to resize.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print</strong> to select specific records or print all visible rows.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Overview</strong> to return to the Overview landing page.</li></ol>'
   },
   activity: {
-    purpose: 'The <strong>Activity Log Tab</strong> provides a complete audit trail of all actions performed within the Employee Management module. It records who did what, when, and from which IP address, supporting compliance and security investigations.',
-    instructions: '<ol><li><strong>Search:</strong> Use the search bar to filter activity logs by user full name, email, module, or action details.</li><li><strong>Sort:</strong> Click any column header to sort by that column. Click again to reverse direction. The default sort is by Timestamp (newest first).</li><li><strong>Review Entries:</strong> Each row shows the timestamp, full name, module/page, action details, and IP address.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print Activity Log</strong> to select specific records or print all visible rows.</li><li><strong>Column Resize:</strong> Drag the edge of any column header to adjust its width.</li></ol>'
+    purpose: 'The <strong>Activity Log Tab</strong> provides a complete audit trail of all actions performed within the system. It records who did what, when, and from which IP address, supporting compliance and security investigations.',
+    instructions: '<ol><li><strong>Search:</strong> Use the search bar to filter activity logs by user full name, email, module, or action details.</li><li><strong>Sort:</strong> Click any column header to sort by that column. Click again to reverse direction. The default sort is by Timestamp (newest first).</li><li><strong>Review Entries:</strong> Each row shows the timestamp, full name, module/page, action details, and IP address.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print Activity Log</strong> to select specific records or print all visible rows.</li><li><strong>Column Resize:</strong> Drag the edge of any column header to adjust its width.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Overview</strong> to return to the Overview landing page.</li></ol>'
   }
 };
 
 function getActiveContext() {
-  var activeTab = document.querySelector('.um-tab.active');
-  if (activeTab) {
-    var tabKey = activeTab.getAttribute('data-tab');
+  var activeContent = document.querySelector('.um-tab-content.active');
+  if (activeContent) {
+    var id = activeContent.getAttribute('id') || '';
+    var tabKey = id.replace('tab-', '');
     if (MODAL_CONTENT_MAP[tabKey]) return tabKey;
   }
   return 'overview';
@@ -248,7 +249,7 @@ function sanitizeStickyAncestors() {
 function makeTabsSticky() {
   sanitizeStickyAncestors();
   var h = document.getElementById("dashHeader");
-  var tb = document.getElementById("umTabBar");
+  var tb = document.getElementById("umUtilityBar");
   if (h && tb) {
     var rect = h.getBoundingClientRect();
     var hHeight = rect.height || (window.innerWidth <= 768 ? 50 : 58);
@@ -495,6 +496,59 @@ async function initializeUserManagementPage() {
   var welcomeEmailEl = document.getElementById('um-welcome-email');
   if (welcomeEmailEl) welcomeEmailEl.textContent = u.email || '';
 
+  // ===== Wire theme toggle =====
+  var themeCheckbox = document.getElementById('dashThemeCheckbox');
+  var themeLabelLight = document.getElementById('dashThemeLabelLight');
+  var themeLabelDark = document.getElementById('dashThemeLabelDark');
+  if (themeCheckbox) {
+    var currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    themeCheckbox.checked = (currentTheme === 'dark');
+    if (themeLabelLight) themeLabelLight.classList.toggle('active', currentTheme === 'light');
+    if (themeLabelDark) themeLabelDark.classList.toggle('active', currentTheme === 'dark');
+    themeCheckbox.addEventListener('change', function() {
+      var newTheme = themeCheckbox.checked ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('driven-theme', newTheme);
+      if (themeLabelLight) themeLabelLight.classList.toggle('active', newTheme === 'light');
+      if (themeLabelDark) themeLabelDark.classList.toggle('active', newTheme === 'dark');
+    });
+  }
+
+  // ===== Wire UOM select =====
+  var uomSelect = document.getElementById('umUomSelect');
+  var uomHint = document.getElementById('umUomHint');
+  if (uomSelect) {
+    var savedUom = localStorage.getItem('driven_uom') || 'org_default';
+    uomSelect.value = savedUom;
+    if (uomHint) {
+      var uomHints = { 'org_default': 'Following organization default', 'imperial': 'US Gallons, Miles, °F', 'metric': 'Liters, Kilometers, °C' };
+      uomHint.textContent = uomHints[savedUom] || '';
+    }
+    uomSelect.addEventListener('change', function() {
+      var val = uomSelect.value;
+      localStorage.setItem('driven_uom', val);
+      if (window.DRIVEN_UNITS) { try { DRIVEN_UNITS.setPreference(val); } catch(e){} }
+      if (uomHint) {
+        var hints = { 'org_default': 'Following organization default', 'imperial': 'US Gallons, Miles, °F', 'metric': 'Liters, Kilometers, °C' };
+        uomHint.textContent = hints[val] || '';
+      }
+      showToast('Units of measure updated.', 'success');
+    });
+  }
+
+  // ===== Wire Language select =====
+  var langSelect = document.getElementById('umLangSelect');
+  if (langSelect) {
+    var savedLang = localStorage.getItem('driven_lang') || 'en';
+    langSelect.value = savedLang;
+    langSelect.addEventListener('change', function() {
+      var val = langSelect.value;
+      localStorage.setItem('driven_lang', val);
+      if (window.DRIVEN_TRANSLATE) { try { DRIVEN_TRANSLATE.setLanguage(val); } catch(e){} }
+      showToast('Language preference updated.', 'success');
+    });
+  }
+
   // ===== Wire Purpose / Instructions modals =====
   var btnPurpose = document.getElementById('btnTabPurpose');
   if (btnPurpose) {
@@ -628,7 +682,7 @@ async function loadActivityLog() {
     var resp = await fetch('/api/audit-log');
     if (resp.ok) {
       var data = await resp.json();
-      allActivityLogs = data.logs || data.audit_entries || (Array.isArray(data) ? data : []);
+      allActivityLogs = data.logs || data.audit_entries || data.records || data.data || (Array.isArray(data) ? data : []);
     }
   } catch (e) {}
   renderActivityLogTable();
@@ -906,7 +960,7 @@ function renderActivityLogTable() {
 
 function updateKpi() {
   document.getElementById('kpiActiveEmployees').textContent = allEmployees.filter(function(e){ return e.status === 'Active'; }).length;
-  document.getElementById('kpiOnLeave').textContent = allEmployees.filter(function(e){ return e.status === 'On Leave'; }).length;
+  document.getElementById('kpiRoles').textContent = allOrgRoles.length;
 }
 
 // ============================================================
@@ -1431,7 +1485,11 @@ function doPrint() {
 // UI HELPERS
 // ============================================================
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-function filterByKpi(type) { switchTab(type === 'ActiveUsers' ? 'users' : 'employees'); }
+function filterByKpi(type) {
+  if (type === 'ActiveEmployees') switchTab('employees');
+  else if (type === 'Roles') switchTab('roles');
+  else switchTab('employees');
+}
 
 function toggleFilterPanel(panelId, e) {
   e.stopPropagation();
@@ -1451,6 +1509,12 @@ document.addEventListener('click', function(e) {
 });
 
 function switchTab(tab) {
+  // Close any open modals when switching tabs
+  document.querySelectorAll('.um-modal.active, .um-modal-overlay.active').forEach(function(m) {
+    m.classList.remove('active');
+    m.style.display = 'none';
+  });
+
   document.querySelectorAll('.um-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.um-tab-content').forEach(function(c) { c.style.display = 'none'; c.classList.remove('active'); });
 
@@ -1462,6 +1526,9 @@ function switchTab(tab) {
     targetContent.style.display = 'block';
     targetContent.classList.add('active');
   }
+
+  // Scroll to top of content area
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function goToMainDashboard() {
