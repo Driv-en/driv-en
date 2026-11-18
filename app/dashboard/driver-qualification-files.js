@@ -8,6 +8,7 @@
 
 var allDrivers = [];
 var currentDriverId = null;
+var currentDriver = null;
 var currentUserOrgId = '';
 var step2AssetCounter = 0;
 
@@ -451,6 +452,7 @@ function openDriverProfile(driverId) {
   currentDriverId = driverId;
   var driver = allDrivers.find(function(d) { return d.id === driverId; });
   if (!driver) return;
+  currentDriver = driver;
   var name = (driver.first_name || '') + ' ' + (driver.last_name || '');
   if (!name.trim()) name = driver.full_name || 'Driver';
   dqfSwitchTab('profile');
@@ -459,6 +461,7 @@ function openDriverProfile(driverId) {
 }
 
 function renderProfile(d) {
+  currentDriver = d;
   var name = (d.first_name || '') + ' ' + (d.last_name || '');
   if (!name.trim()) name = d.full_name || 'Driver';
   var endorsements = (d.cdl_endorsements || '').split(',').filter(Boolean);
