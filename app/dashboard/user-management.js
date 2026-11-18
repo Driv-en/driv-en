@@ -385,7 +385,14 @@ function normalizeEmployee(r) {
     state: parseVal(r.state),
     zip: parseVal(r.zip),
     driversLicense: parseVal(r.drivers_license || r.driversLicense),
-    dlState: parseVal(r.dl_state || r.dlState)
+    dlState: parseVal(r.dl_state || r.dlState),
+    is_commercial_driver: parseVal(r.is_commercial_driver),
+    step2_status: parseVal(r.step2_status),
+    driving_record_status: parseVal(r.driving_record_status),
+    medical_card_status: parseVal(r.medical_card_status),
+    drug_test_status: parseVal(r.drug_test_status),
+    background_check_status: parseVal(r.background_check_status),
+    auto_policy_status: parseVal(r.auto_policy_status)
   };
 }
 
@@ -483,6 +490,7 @@ async function initializeUserManagementPage() {
   if (loadingEl) loadingEl.style.display = 'none';
   document.getElementById('tab-overview').style.display = 'block';
   updateKpi();
+  checkStep2Reminders();
 
   // ===== Populate welcome card =====
   var firstName = u.first_name || u.email || '';
@@ -1204,6 +1212,7 @@ function openAddEmpModal() {
   document.getElementById('addEmpStatus').value = 'Active';
   document.getElementById('addEmpDl').value = '';
   document.getElementById('addEmpDlState').value = '';
+  var cdEl = document.getElementById('addEmpCommercialDriver'); if (cdEl) cdEl.value = 'no';
   document.getElementById('umAddEmpModal').classList.add('active');
 }
 
@@ -1228,6 +1237,7 @@ function openEmpEditModal(id) {
   document.getElementById('addEmpStatus').value = emp.status;
   document.getElementById('addEmpDl').value = emp.driversLicense !== '\u2014' ? emp.driversLicense : '';
   document.getElementById('addEmpDlState').value = emp.dlState !== '\u2014' ? emp.dlState : '';
+  var cdEl2 = document.getElementById('addEmpCommercialDriver'); if (cdEl2) cdEl2.value = emp.is_commercial_driver === 'yes' ? 'yes' : 'no';
   document.getElementById('umAddEmpModal').classList.add('active');
 }
 
@@ -1249,6 +1259,7 @@ async function submitSaveEmployee() {
   var status = document.getElementById('addEmpStatus').value;
   var dl = document.getElementById('addEmpDl').value.trim();
   var dlState = document.getElementById('addEmpDlState').value.trim();
+  var isCD = document.getElementById('addEmpCommercialDriver') ? document.getElementById('addEmpCommercialDriver').value : 'no';
 
   if (!fn || !ln) {
     showToast('First and Last name are required.', 'error');
@@ -1260,7 +1271,8 @@ async function submitSaveEmployee() {
     id: id || undefined, org_id: currentUserOrgId,
     first_name: fn, middle_name: mn, last_name: ln, suffix: suffix, full_name: fullStr, name: fullStr,
     email: em, employee_number: empNum, role: role, phone: phone, dob: dob, address: addr,
-    city: city, state: state, zip: zip, status: status, drivers_license: dl, dl_state: dlState
+    city: city, state: state, zip: zip, status: status, drivers_license: dl, dl_state: dlState,
+    is_commercial_driver: isCD
   };
 
   try {
@@ -1302,6 +1314,32 @@ async function submitSaveEmployee() {
   updateKpi();
   await loadActivityLog();
   closeModal('umAddEmpModal');
+
+  // Handle commercial driver compliance flow
+  var savedId = id;
+  if (!savedId && resp) {
+    try { var rj = await resp.clone().json(); savedId = rj.id || rj.result?.id || rj.result?.[0]?.id; } catch(e) {}
+  }
+  if (isCD === 'yes' && savedId) {
+    updateStep2Status(savedId, 'pending');
+    try {
+      await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          org_id: currentUserOrgId,
+          type: 'new_driver',
+          title: 'New Driver Hired — Action Required',
+          message: fullStr + ' has been hired as a commercial driver. Complete their Driver Qualification File.',
+          target_user_id: null,
+          link: '/app/dashboard/driver-qualification-files.html',
+          created_at: new Date().toISOString()
+        })
+      });
+    } catch(e) { console.warn('Notification failed:', e); }
+    showToast('Driver flagged as commercial. Safety/Compliance team notified to complete DQF.', 'success');
+    checkStep2Reminders();
+  }
 }
 
 // ============================================================
@@ -1572,3 +1610,310 @@ function onEmpFilterChange() { renderEmpTable(); }
 
 window.addEventListener('resize', makeTabsSticky);
 window.addEventListener('scroll', makeTabsSticky, { passive: true });
+
+// ============================================================
+// STEP 2 — COMPLIANCE & EMPLOYEE-OWNED ASSETS
+// ============================================================
+var step2EmployeeId = null;
+var step2EmployeeName = '';
+var step2Assets = [];
+var step2AssetCounter = 0;
+
+function showStep2Prompt(empId, empName) {
+  step2EmployeeId = empId;
+  step2EmployeeName = empName;
+  var prompt = document.getElementById('umStep2Prompt');
+  var text = document.getElementById('umStep2PromptText');
+  if (text) text.textContent = 'Will ' + (empName || 'this employee') + ' be providing personal assets (truck, welding machine, equipment, etc.) for business purposes?';
+  if (prompt) prompt.classList.add('active');
+}
+
+function step2PromptResponse(answer) {
+  document.getElementById('umStep2Prompt').classList.remove('active');
+  if (answer === true) {
+    updateStep2Status(step2EmployeeId, 'incomplete');
+    openStep2Modal(step2EmployeeId, step2EmployeeName);
+  } else if (answer === false) {
+    updateStep2Status(step2EmployeeId, 'not_needed');
+    showToast('Employee saved. Step 2 marked as not needed.', 'success');
+  } else {
+    updateStep2Status(step2EmployeeId, 'incomplete');
+    showToast('Employee saved. You can complete Step 2 later.', 'success');
+    checkStep2Reminders();
+  }
+}
+
+function updateStep2Status(empId, status) {
+  if (!empId) return;
+  try {
+    fetch('/api/employees/' + encodeURIComponent(empId), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step2_status: status })
+    });
+  } catch(e) { console.warn('Step2 status update failed:', e); }
+  var emp = allEmployees.find(function(x) { return x.id === empId; });
+  if (emp) emp.step2_status = status;
+}
+
+function openStep2Modal(empId, empName) {
+  step2EmployeeId = empId;
+  step2EmployeeName = empName || '';
+  step2Assets = [];
+  step2AssetCounter = 0;
+  var titleEl = document.getElementById('umStep2Title');
+  if (titleEl) titleEl.textContent = 'Compliance & Assets — ' + (empName || 'Employee');
+  document.getElementById('umStep2Modal').classList.add('active');
+  loadStep2Data(empId);
+}
+
+function closeStep2Modal() {
+  document.getElementById('umStep2Modal').classList.remove('active');
+}
+
+function loadStep2Data(empId) {
+  var emp = allEmployees.find(function(x) { return x.id === empId; });
+  if (emp) {
+    setVal('step2_auth_company_vehicle', emp.authorized_company_vehicle || '');
+    setVal('step2_cdl_class', emp.cdl_class || 'none');
+    setVal('step2_dr_verified', emp.driving_record_verified || '');
+    setVal('step2_dr_recheck', emp.driving_record_recheck_date || '');
+    setVal('step2_med_exp', emp.medical_card_expiration || '');
+    setVal('step2_bg_date', emp.background_check_date || '');
+    setVal('step2_bg_recheck', emp.background_check_recheck || '');
+    setVal('step2_dt_date', emp.drug_test_date || '');
+    setVal('step2_dt_recheck', emp.drug_test_recheck || '');
+    var endorsements = (emp.cdl_endorsements || '').split(',').filter(Boolean);
+    document.querySelectorAll('.um-step2-section input[type=checkbox]').forEach(function(cb) {
+      cb.checked = endorsements.includes(cb.value);
+    });
+    updateStep2StatusBadge('dr'); updateStep2StatusBadge('med'); updateStep2StatusBadge('bg'); updateStep2StatusBadge('dt');
+  }
+  loadEmployeeAssets(empId);
+}
+
+function setVal(id, val) { var el = document.getElementById(id); if (el) el.value = val; }
+
+function loadEmployeeAssets(empId) {
+  fetch('/api/employee-owned-assets?employee_id=' + encodeURIComponent(empId))
+    .then(function(r) { return r.ok ? r.json() : { records: [] }; })
+    .then(function(data) {
+      step2Assets = data.records || data.data || data.assets || [];
+      if (!Array.isArray(step2Assets)) step2Assets = [];
+      var list = document.getElementById('step2_assets_list');
+      if (list) list.innerHTML = '';
+      step2Assets.forEach(function(a) { addAssetCard(a); });
+      var hasAssets = step2Assets.length > 0;
+      document.getElementById('step2_has_assets').checked = hasAssets;
+      toggleAssetSection();
+    })
+    .catch(function(e) {
+      step2Assets = [];
+      toggleAssetSection();
+    });
+}
+
+function toggleAssetSection() {
+  var cb = document.getElementById('step2_has_assets');
+  var container = document.getElementById('step2_assets_container');
+  if (cb && container) container.style.display = cb.checked ? 'block' : 'none';
+}
+
+function addAssetCard(existing) {
+  step2AssetCounter++;
+  var cardId = 'asset_card_' + step2AssetCounter;
+  var a = existing || {};
+  var isVehicle = (a.asset_type === 'vehicle');
+  var html = '<div class="um-asset-card" id="' + cardId + '" data-asset-id="' + (a.id || '') + '">' +
+    '<div class="um-asset-card-header">' +
+      '<div class="um-asset-card-title">Asset #' + step2AssetCounter + (a.asset_type ? ' — ' + a.asset_type : '') + '</div>' +
+      '<button class="um-asset-remove" onclick="removeAssetCard(\'' + cardId + '\')">Remove</button>' +
+    '</div>' +
+    '<div class="um-step2-grid">' +
+      '<div class="um-step2-field"><label>Asset Type</label><select onchange="onAssetTypeChange(\'' + cardId + '\')" id="' + cardId + '_type">' +
+        '<option value="">-- Select --</option>' +
+        '<option value="vehicle"' + (isVehicle ? ' selected' : '') + '>Vehicle</option>' +
+        '<option value="welding"' + (a.asset_type === 'welding' ? ' selected' : '') + '>Welding Machine</option>' +
+        '<option value="equipment"' + (a.asset_type === 'equipment' ? ' selected' : '') + '>Equipment</option>' +
+        '<option value="generator"' + (a.asset_type === 'generator' ? ' selected' : '') + '>Generator</option>' +
+        '<option value="other"' + (a.asset_type === 'other' ? ' selected' : '') + '>Other</option>' +
+      '</select></div>' +
+      '<div class="um-step2-field"><label>Description</label><input type="text" id="' + cardId + '_desc" value="' + esc(a.asset_description || '') + '"></div>' +
+      '<div class="um-step2-field"><label>Make</label><input type="text" id="' + cardId + '_make" value="' + esc(a.make || '') + '"></div>' +
+      '<div class="um-step2-field"><label>Model</label><input type="text" id="' + cardId + '_model" value="' + esc(a.model || '') + '"></div>' +
+      '<div class="um-step2-field"><label>Year</label><input type="text" id="' + cardId + '_year" value="' + esc(a.year || '') + '"></div>' +
+      '<div class="um-step2-field"><label>Serial Number</label><input type="text" id="' + cardId + '_serial" value="' + esc(a.serial_number || '') + '"></div>' +
+      '<div class="um-step2-field"><label>Start Date</label><input type="date" id="' + cardId + '_start" value="' + esc(a.start_date || '') + '"></div>' +
+    '</div>' +
+    '<div class="um-asset-vehicle-fields' + (isVehicle ? ' show' : '') + '" id="' + cardId + '_vehicle">' +
+      '<div class="um-step2-grid" style="margin-top:8px;">' +
+        '<div class="um-step2-field"><label>VIN</label><input type="text" id="' + cardId + '_vin" value="' + esc(a.vin || '') + '"></div>' +
+        '<div class="um-step2-field"><label>Insurance Carrier</label><input type="text" id="' + cardId + '_ins_carrier" value="' + esc(a.insurance_carrier || '') + '"></div>' +
+        '<div class="um-step2-field"><label>Insurance Policy #</label><input type="text" id="' + cardId + '_ins_policy" value="' + esc(a.insurance_policy_num || '') + '"></div>' +
+        '<div class="um-step2-field"><label>Insurance Expiration</label><input type="date" id="' + cardId + '_ins_exp" value="' + esc(a.insurance_expiration || '') + '"></div>' +
+      '</div>' +
+      '<div class="um-step2-field um-step2-field-full" style="margin-top:8px;"><label>Insurance Document</label><div class="um-step2-file-row"><input type="file" id="' + cardId + '_ins_doc" accept="image/*,application/pdf"><div class="um-step2-file-placeholder">&#128247;</div></div></div>' +
+      '<div class="um-step2-field um-step2-field-full" style="margin-top:8px;"><label>Registration Document</label><div class="um-step2-file-row"><input type="file" id="' + cardId + '_reg_doc" accept="image/*,application/pdf"><div class="um-step2-file-placeholder">&#128247;</div></div></div>' +
+      '<div class="um-step2-field" style="margin-top:8px;"><label>Registration Expiration</label><input type="date" id="' + cardId + '_reg_exp" value="' + esc(a.registration_exp || '') + '"></div>' +
+    '</div>' +
+    '<div class="um-step2-field um-step2-field-full" style="margin-top:8px;"><label>Notes</label><textarea id="' + cardId + '_notes" rows="2">' + esc(a.notes || '') + '</textarea></div>' +
+  '</div>';
+  var list = document.getElementById('step2_assets_list');
+  if (list) list.insertAdjacentHTML('beforeend', html);
+}
+
+function onAssetTypeChange(cardId) {
+  var sel = document.getElementById(cardId + '_type');
+  var vehFields = document.getElementById(cardId + '_vehicle');
+  if (sel && vehFields) vehFields.classList.toggle('show', sel.value === 'vehicle');
+  var title = document.querySelector('#' + cardId + ' .um-asset-card-title');
+  if (title) title.textContent = 'Asset — ' + (sel.value || 'New');
+}
+
+function removeAssetCard(cardId) {
+  var card = document.getElementById(cardId);
+  if (card) {
+    var assetId = card.getAttribute('data-asset-id');
+    if (assetId) {
+      try { fetch('/api/employee-owned-assets/' + encodeURIComponent(assetId), { method: 'DELETE' }); } catch(e) {}
+    }
+    card.remove();
+  }
+}
+
+function calculateComplianceStatus(expDate) {
+  if (!expDate) return 'none';
+  var now = new Date(); now.setHours(0,0,0,0);
+  var exp = new Date(expDate); exp.setHours(0,0,0,0);
+  var diffDays = Math.floor((exp - now) / 86400000);
+  if (diffDays < 0) return 'expired';
+  if (diffDays <= 7) return '7day';
+  if (diffDays <= 30) return '30day';
+  return 'current';
+}
+
+function statusBadgeClass(status) {
+  return { current: 'um-status-current', '30day': 'um-status-30day', '7day': 'um-status-7day', expired: 'um-status-expired', none: 'um-status-none' }[status] || 'um-status-none';
+}
+
+function statusBadgeText(status) {
+  return { current: 'Current', '30day': '30 Days', '7day': '7 Days', expired: 'Expired', none: 'Not Set' }[status] || 'Not Set';
+}
+
+function updateStep2StatusBadge(type) {
+  var dateVal = '';
+  var badgeId = '';
+  if (type === 'dr') { dateVal = document.getElementById('step2_dr_recheck') ? document.getElementById('step2_dr_recheck').value : ''; badgeId = 'step2_dr_status_badge'; }
+  else if (type === 'med') { dateVal = document.getElementById('step2_med_exp') ? document.getElementById('step2_med_exp').value : ''; badgeId = 'step2_med_status_badge'; }
+  else if (type === 'bg') { dateVal = document.getElementById('step2_bg_recheck') ? document.getElementById('step2_bg_recheck').value : ''; badgeId = 'step2_bg_status_badge'; }
+  else if (type === 'dt') { dateVal = document.getElementById('step2_dt_recheck') ? document.getElementById('step2_dt_recheck').value : ''; badgeId = 'step2_dt_status_badge'; }
+  if (!badgeId) return;
+  var status = calculateComplianceStatus(dateVal);
+  var badge = document.getElementById(badgeId);
+  if (badge) { badge.className = 'um-status-badge ' + statusBadgeClass(status); badge.textContent = statusBadgeText(status); }
+}
+
+async function saveStep2(complete) {
+  var endorsements = [];
+  document.querySelectorAll('.um-step2-section input[type=checkbox]:checked').forEach(function(cb) { endorsements.push(cb.value); });
+  var compliancePayload = {
+    authorized_company_vehicle: getVal('step2_auth_company_vehicle'),
+    cdl_class: getVal('step2_cdl_class'),
+    cdl_endorsements: endorsements.join(','),
+    driving_record_verified: getVal('step2_dr_verified'),
+    driving_record_recheck_date: getVal('step2_dr_recheck'),
+    driving_record_status: calculateComplianceStatus(getVal('step2_dr_recheck')),
+    medical_card_expiration: getVal('step2_med_exp'),
+    medical_card_status: calculateComplianceStatus(getVal('step2_med_exp')),
+    background_check_date: getVal('step2_bg_date'),
+    background_check_recheck: getVal('step2_bg_recheck'),
+    background_check_status: calculateComplianceStatus(getVal('step2_bg_recheck')),
+    drug_test_date: getVal('step2_dt_date'),
+    drug_test_recheck: getVal('step2_dt_recheck'),
+    drug_test_status: calculateComplianceStatus(getVal('step2_dt_recheck')),
+    auto_policy_status: 'none',
+    step2_status: complete ? 'complete' : 'incomplete'
+  };
+
+  var hasVehicle = false;
+  var earliestInsExp = null;
+  document.querySelectorAll('.um-asset-card').forEach(function(card) {
+    var typeSel = card.querySelector('select[id$="_type"]');
+    if (typeSel && typeSel.value === 'vehicle') {
+      hasVehicle = true;
+      var insExp = card.querySelector('input[id$="_ins_exp"]');
+      if (insExp && insExp.value) {
+        if (!earliestInsExp || insExp.value < earliestInsExp) earliestInsExp = insExp.value;
+      }
+    }
+  });
+  if (hasVehicle) compliancePayload.auto_policy_status = calculateComplianceStatus(earliestInsExp);
+
+  try {
+    await fetch('/api/employees/' + encodeURIComponent(step2EmployeeId), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(compliancePayload)
+    });
+  } catch(e) { console.warn('Compliance save failed:', e); }
+
+  var cards = document.querySelectorAll('.um-asset-card');
+  for (var i = 0; i < cards.length; i++) {
+    var card = cards[i];
+    var cid = card.id;
+    var assetData = {
+      employee_id: step2EmployeeId,
+      org_id: currentUserOrgId,
+      asset_type: getVal(cid + '_type'),
+      asset_description: getVal(cid + '_desc'),
+      make: getVal(cid + '_make'),
+      model: getVal(cid + '_model'),
+      year: getVal(cid + '_year'),
+      serial_number: getVal(cid + '_serial'),
+      vin: getVal(cid + '_vin'),
+      insurance_carrier: getVal(cid + '_ins_carrier'),
+      insurance_policy_num: getVal(cid + '_ins_policy'),
+      insurance_expiration: getVal(cid + '_ins_exp'),
+      registration_exp: getVal(cid + '_reg_exp'),
+      start_date: getVal(cid + '_start'),
+      notes: getVal(cid + '_notes')
+    };
+    if (assetData.asset_type === 'vehicle') {
+      assetData.insurance_status = calculateComplianceStatus(assetData.insurance_expiration);
+    }
+    var assetId = card.getAttribute('data-asset-id');
+    try {
+      if (assetId) {
+        await fetch('/api/employee-owned-assets/' + encodeURIComponent(assetId), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(assetData) });
+      } else {
+        assetData.id = 'eoa_' + Date.now() + '_' + i;
+        await fetch('/api/employee-owned-assets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(assetData) });
+      }
+    } catch(e) { console.warn('Asset save failed:', e); }
+  }
+
+  var emp = allEmployees.find(function(x) { return x.id === step2EmployeeId; });
+  if (emp) Object.assign(emp, compliancePayload);
+
+  showToast(complete ? 'Step 2 completed and saved.' : 'Step 2 saved. You can complete it later.', 'success');
+  closeStep2Modal();
+  renderEmpTable();
+  updateKpi();
+  checkStep2Reminders();
+}
+
+function getVal(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function checkStep2Reminders() {
+  var incomplete = allEmployees.filter(function(e) { return e.step2_status === 'incomplete' || e.step2_status === 'pending'; });
+  var banner = document.getElementById('umStep2Reminder');
+  var text = document.getElementById('umStep2ReminderText');
+  if (incomplete.length > 0 && banner && text) {
+    text.textContent = incomplete.length + ' employee' + (incomplete.length > 1 ? 's' : '') + ' have incomplete compliance & asset information (Step 2). Click to review.';
+    banner.style.display = 'flex';
+  } else if (banner) {
+    banner.style.display = 'none';
+  }
+}
