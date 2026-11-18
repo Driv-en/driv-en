@@ -693,6 +693,10 @@
               <div class="um-nav-card-title">🔑 Roles &amp; Permissions</div>
               <div class="um-nav-card-desc">View organization roles, system roles, and permission definitions</div>
             </div>
+            <div class="um-nav-card" onclick="switchTab('import')">
+              <div class="um-nav-card-title">📥 Import Employees</div>
+              <div class="um-nav-card-desc">Bring employee data in from ADP, QuickBooks, Gusto, Paychex, Sage, BambooHR, Rippling, or any CSV file</div>
+            </div>
           </div>
         </div>
       </div>
@@ -871,6 +875,59 @@
     </div>
 
     <!-- Activity Log Tab -->
+    <!-- Import Employees Tab -->
+    <div class="um-tab-content" id="tab-import">
+      <div style="padding:16px;">
+        <div class="um-links-card" style="border:2px solid #16a34a; margin-bottom:16px;">
+          <h3>📥 Import Employees</h3>
+          <p style="margin:6px 0 14px 0; font-size:13px; color:var(--text-secondary, #555);">
+            Bring your employee list in from your payroll or HR program. Select your program below, upload the exported CSV file,
+            review the preview, then import. Existing employees are matched by email and can be skipped or updated.
+          </p>
+          <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:14px;">
+            <div>
+              <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">Payroll / HR Program</label>
+              <select id="umImportProvider" style="padding:8px 10px; border:2px solid #16a34a; border-radius:6px; min-width:220px; background:var(--card-bg, #fff); color:inherit;">
+                <option value="auto" selected>🔍 Auto-Detect (recommended)</option>
+                <option value="adp">ADP</option>
+                <option value="quickbooks">QuickBooks</option>
+                <option value="gusto">Gusto</option>
+                <option value="paychex">Paychex</option>
+                <option value="sage">Sage</option>
+                <option value="bamboohr">BambooHR</option>
+                <option value="rippling">Rippling</option>
+                <option value="generic">Other / Not Listed (generic CSV)</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">Duplicate Emails</label>
+              <select id="umImportDupMode" style="padding:8px 10px; border:2px solid #16a34a; border-radius:6px; background:var(--card-bg, #fff); color:inherit;">
+                <option value="skip" selected>Skip existing employees</option>
+                <option value="update">Update existing employees</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">CSV File</label>
+              <input type="file" id="umImportFile" accept=".csv,text/csv" style="padding:6px; border:2px solid #16a34a; border-radius:6px; background:var(--card-bg, #fff); color:inherit;">
+            </div>
+            <button id="umImportPreviewBtn" onclick="umImportRunPreview()" style="padding:9px 18px; background:#16a34a; color:#fff; border:none; border-radius:6px; font-weight:600; cursor:pointer;">Preview Import</button>
+            <a href="/api/import/template/employees" style="padding:9px 12px; border:2px solid #16a34a; border-radius:6px; font-size:12px; text-decoration:none; color:#16a34a;">⬇ Download Blank Template</a>
+          </div>
+          <div id="umImportStatus" style="display:none; padding:10px 12px; border-radius:6px; font-size:13px; margin-bottom:12px;"></div>
+          <div id="umImportMapping" style="display:none; margin-bottom:14px;">
+            <h4 style="margin:0 0 8px 0; font-size:13px;">Column Mapping (auto-filled — adjust if needed)</h4>
+            <div id="umImportMappingGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:8px;"></div>
+          </div>
+          <div id="umImportResults" style="display:none;"></div>
+        </div>
+
+        <div class="um-links-card" style="border:2px solid #16a34a;">
+          <h3>🕘 Import History</h3>
+          <div id="umImportHistory" style="margin-top:10px;"><em style="font-size:12px;">Loading…</em></div>
+        </div>
+      </div>
+    </div>
+
     <div class="um-tab-content" id="tab-activity">
       <div class="um-search-card">
         <div class="um-search-row1">
@@ -1038,6 +1095,14 @@
         <div class="um-form-group">
           <label>DL State</label>
           <input type="text" id="addEmpDlState" placeholder="TX" data-voice-input>
+        </div>
+        <div class="um-form-group">
+          <label>DL Front Photo</label>
+          <input type="file" id="addEmpDlFrontPhoto" accept="image/*" style="font-size:13px;">
+        </div>
+        <div class="um-form-group">
+          <label>DL Back Photo</label>
+          <input type="file" id="addEmpDlBackPhoto" accept="image/*" style="font-size:13px;">
         </div>
       </div>
       <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
@@ -1262,7 +1327,8 @@
   <script src="/app/shared/units-global.js?v=2"></script>
   <script src="/app/shared/apply-units.js?v=1"></script>
   <script src="/app/shared/voice.js?v=3"></script>
-  <script src="/app/dashboard/user-management.js?v=8"></script>
+  <script src="/app/dashboard/user-management.js?v=9"></script>
+  <script src="/app/dashboard/user-management-import.js?v=1"></script>
   <script src="/app/shared/translate.js?v=3"></script>
 </body>
 </html>
