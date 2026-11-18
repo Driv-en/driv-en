@@ -534,14 +534,34 @@
       var html = '<table style="width:100%; font-size:12px; border-collapse:collapse;"><thead><tr>' +
         '<th style="padding:6px 8px; text-align:left;">Date</th><th style="padding:6px 8px; text-align:left;">Imported</th>' +
         '<th style="padding:6px 8px; text-align:left;">Updated</th><th style="padding:6px 8px; text-align:left;">Failed</th>' +
-        '<th style="padding:6px 8px; text-align:left;">By</th><th style="padding:6px 8px;"></th></tr></thead><tbody>';
+        '<th style="padding:6px 8px; text-align:left;">By</th><th style="padding:6px 8px; text-align:left;">Status</th>' +
+        '<th style="padding:6px 8px;"></th></tr></thead><tbody>';
       imports.forEach(function (b) {
-        html += '<tr><td style="padding:5px 8px;">' + new Date(b.created_at).toLocaleString() + '</td>' +
-          '<td style="padding:5px 8px;">' + (b.imported_rows || 0) + '</td>' +
-          '<td style="padding:5px 8px;">' + ((b.total_rows || 0) - (b.imported_rows || 0) - (b.failed_rows || 0)) + '</td>' +
-          '<td style="padding:5px 8px;">' + (b.failed_rows || 0) + '</td>' +
+        var isUndone = b.undone_at || b.status === 'undone';
+        var imported = b.imported_rows || 0;
+        var failed = b.failed_rows || 0;
+        var updated = (b.total_rows || 0) - imported - failed;
+        var rowStyle = isUndone ? 'opacity:0.5; ' : '';
+        var statusLabel, statusColor;
+        if (isUndone) { statusLabel = '⊘ Undone'; statusColor = '#64748b'; }
+        else if (imported === 0 && failed > 0) { statusLabel = '✗ Failed'; statusColor = '#dc2626'; }
+        else if (failed > 0) { statusLabel = '⚠ Partial'; statusColor = '#d97706'; }
+        else { statusLabel = '✓ Complete'; statusColor = '#16a34a'; }
+        var undoBtn;
+        if (isUndone) {
+          undoBtn = '<span style="font-size:11px; color:#94a3b8;">—</span>';
+        } else if (imported === 0 && failed > 0) {
+          undoBtn = '<span style="font-size:11px; color:#94a3b8;">Nothing to undo</span>';
+        } else {
+          undoBtn = '<button onclick="dqfImportUndo(\'' + b.id + '\')" style="padding:4px 10px; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; border-radius:4px; cursor:pointer; font-size:11px;">Undo</button>';
+        }
+        html += '<tr style="' + rowStyle + '"><td style="padding:5px 8px;">' + new Date(b.created_at).toLocaleString() + '</td>' +
+          '<td style="padding:5px 8px;">' + imported + '</td>' +
+          '<td style="padding:5px 8px;">' + updated + '</td>' +
+          '<td style="padding:5px 8px;">' + failed + '</td>' +
           '<td style="padding:5px 8px;">' + esc(b.created_by || '') + '</td>' +
-          '<td style="padding:5px 8px;"><button onclick="dqfImportUndo(\'' + b.id + '\')" style="padding:4px 10px; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; border-radius:4px; cursor:pointer; font-size:11px;">Undo</button></td></tr>';
+          '<td style="padding:5px 8px; color:' + statusColor + '; font-weight:600;">' + statusLabel + '</td>' +
+          '<td style="padding:5px 8px;">' + undoBtn + '</td></tr>';
       });
       html += '</tbody></table>';
       el.innerHTML = html;
