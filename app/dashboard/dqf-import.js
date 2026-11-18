@@ -162,6 +162,25 @@
     return (best && bestScore >= 2) ? best : 'generic_dqf';
   }
 
+  // ---------- Error logging to D1 error_log table ----------
+  function logError(source, msg, stack) {
+    try {
+      var orgId = '';
+      try { orgId = document.body.getAttribute('data-org-id') || window.activeOrgId || ''; } catch(e) {}
+      fetch('/api/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
+        body: JSON.stringify({
+          source: 'DQF Import (' + source + ')',
+          message: msg,
+          stack: stack || '',
+          url: window.location.href,
+          userAgent: navigator.userAgent
+        })
+      }).catch(function() {});
+    } catch (e) {}
+  }
+
   // ---------- Status banner ----------
   function setStatus(msg, kind) {
     var el = document.getElementById('dqfImportStatus');
@@ -327,6 +346,7 @@
         if (data.errors && data.errors.length) errMsg += ' — ' + data.errors.join('; ');
         setStatus(errMsg, 'error');
         console.error('DQF Import preview error:', data);
+        logError('Preview', errMsg);
         return;
       }
       state.previewData = data;
@@ -334,6 +354,7 @@
     } catch (e) {
       setStatus('Preview request failed: ' + e.message, 'error');
       console.error('DQF Import preview exception:', e);
+      logError('Preview', e.message, e.stack);
     }
   }
 
@@ -420,17 +441,29 @@
         var errMsg = data.error || data.message || 'Import failed (HTTP ' + resp.status + ')';
         if (data.errors && data.errors.length) errMsg += ' — ' + data.errors.join('; ');
         setStatus(errMsg, 'error');
+        logError('Commit', errMsg);
         return;
       }
       var msg = '✅ Imported ' + data.imported + ' new driver(s)';
       if (data.updated) msg += ', updated ' + data.updated + ' existing';
-      if (data.failed) msg += '. ' + data.failed + ' failed — see Import History.';
-      setStatus(msg + '. Batch ID: ' + data.batch_id + ' (undo available in Import History)', 'info');
+      if (data.failed) msg += '. ' + data.failed + ' failed';
+      setStatus(msg + '. Batch ID: ' + data.batch_id + ' (undo available in Import History)', data.failed ? 'warn' : 'info');
       document.getElementById('dqfImportResults').style.display = 'none';
       document.getElementById('dqfImportMapping').style.display = 'none';
       loadDqfImportHistory();
       // Show post-import compliance checklist
       showPostImportChecklist(data);
+      // Show failed row errors if any
+      if (data.failed_rows && data.failed_rows.length) {
+        var failHtml = '<div style="margin-top:12px; padding:10px; background:#fee2e2; border-radius:6px; font-size:12px;">';
+        failHtml += '<strong>⚠️ ' + data.failed_rows.length + ' row(s) failed:</strong><br>';
+        data.failed_rows.forEach(function(fr) {
+          failHtml += 'Row ' + fr.row + ': ' + esc(fr.error) + '<br>';
+        });
+        failHtml += '</div>';
+        var results = document.getElementById('dqfImportResults');
+        if (results) { results.style.display = 'block'; results.innerHTML = failHtml; }
+      }
       // Reload the driver table — try multiple approaches
       var tableReloaded = false;
       if (typeof window.loadDrivers === 'function') { try { await window.loadDrivers(); tableReloaded = true; } catch (e) { console.error('loadDrivers failed:', e); } }
@@ -450,6 +483,7 @@
       }
     } catch (e) {
       setStatus('Import request failed: ' + e.message, 'error');
+      logError('Commit', e.message, e.stack);
     }
   };
 
@@ -521,7 +555,7 @@
     try {
       var resp = await fetch('/api/import/' + batchId + '/undo', { method: 'POST' });
       var data = await resp.json();
-      if (!resp.ok || !data.success) { setStatus(data.error || 'Undo failed.', 'error'); return; }
+      if (!resp.ok || !data.success) { setStatus(data.error || 'Undo failed.', 'error'); logError('Undo', data.error || 'Undo failed'); return; }
       setStatus('✅ Undone: ' + (data.deleted || 0) + ' driver(s) removed.', 'info');
       loadDqfImportHistory();
       if (typeof window.loadDrivers === 'function') { try { await window.loadDrivers(); } catch (e) {} }
@@ -529,6 +563,7 @@
       if (typeof window.updateKpis === 'function') { try { window.updateKpis(); } catch (e) {} }
     } catch (e) {
       setStatus('Undo request failed: ' + e.message, 'error');
+      logError('Undo', e.message, e.stack);
     }
   };
 
@@ -553,6 +588,7 @@
       setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
     } catch (e) {
       setStatus('Template download failed: ' + e.message, 'error');
+      logError('Template Download', e.message, e.stack);
     } finally {
       if (btn) btn.textContent = old || '⬇ Download Template';
     }
