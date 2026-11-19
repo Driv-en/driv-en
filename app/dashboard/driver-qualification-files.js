@@ -203,6 +203,7 @@ var dqfSortDir = localStorage.getItem('dqf_sort_dir') || 'asc';
 var dqfPage = 1;
 var dqfPageSize = parseInt(localStorage.getItem('dqf_page_size')) || 25;
 var dqfSearch = '';
+var dqfKpiFilter = 'all';
 
 function dqfGetSortVal(d, col) {
   if (col === 'name') return ((d.first_name || '') + ' ' + (d.last_name || '')).toLowerCase();
@@ -222,11 +223,42 @@ function dqfSort(col) {
 
 function dqfFilterDrivers() {
   var s = (dqfSearch || '').toLowerCase();
-  if (!s) return allDrivers.slice();
-  return allDrivers.filter(function(d) {
+  var list = allDrivers.slice();
+  // Apply KPI filter
+  if (dqfKpiFilter && dqfKpiFilter !== 'all') {
+    list = list.filter(function(d) {
+      var cs = computeDriverStatuses(d);
+      var fs = computeFileStatus(d);
+      if (dqfKpiFilter === 'pending') return d.step2_status === 'pending' || !d.step2_status;
+      if (dqfKpiFilter === 'expired') return ['driving_record_status','medical_card_status','background_check_status','auto_policy_status'].some(function(k) { return cs[k] === 'expired'; });
+      if (dqfKpiFilter === 'current') return fs === 'complete' && !['driving_record_status','medical_card_status','background_check_status','auto_policy_status'].some(function(k) { return cs[k] === 'expired' || cs[k] === '7day' || cs[k] === '30day'; });
+      if (dqfKpiFilter === 'docs_needed') return DQF_REQUIRED_DOCS.some(function(doc) { return !d[doc.field]; });
+      return true;
+    });
+  }
+  if (!s) return list;
+  return list.filter(function(d) {
     var name = ((d.first_name || '') + ' ' + (d.last_name || '')).toLowerCase();
     return name.indexOf(s) >= 0 || String(d.cdl_class || '').toLowerCase().indexOf(s) >= 0 || String(d.email || '').toLowerCase().indexOf(s) >= 0;
   });
+}
+
+function dqfFilterBy(type) {
+  dqfKpiFilter = type || 'all';
+  dqfPage = 1;
+  dqfSwitchTab('list');
+  renderDriverTable();
+  updateKpiFilterBanner();
+}
+
+function updateKpiFilterBanner() {
+  var el = document.getElementById('dqfKpiFilterBanner');
+  if (!el) return;
+  if (!dqfKpiFilter || dqfKpiFilter === 'all') { el.style.display = 'none'; el.innerHTML = ''; return; }
+  var labels = { pending: 'Pending', expired: 'Expired', current: 'Current', docs_needed: 'Docs Needed' };
+  var count = dqfFilterDrivers().length;
+  el.style.display = 'block';
+  el.innerHTML = 'Filtered by: <strong>' + (labels[dqfKpiFilter] || dqfKpiFilter) + '</strong> (' + count + ') &nbsp; <a href="#" onclick="dqfFilterBy(\'all\'); return false;" style="color:#2563eb; text-decoration:underline;">Clear filter</a>';
 }
 
 function renderDriverTable() {
@@ -278,6 +310,7 @@ function renderDriverTable() {
   });
   var pgInfo = document.getElementById('dqfPageInfo');
   if (pgInfo) pgInfo.textContent = 'Page ' + dqfPage + ' of ' + totalPages + ' (' + filtered.length + ' drivers)';
+  updateKpiFilterBanner();
   var pgPrev = document.getElementById('dqfPrevPage');
   if (pgPrev) pgPrev.disabled = (dqfPage <= 1);
   var pgNext = document.getElementById('dqfNextPage');
