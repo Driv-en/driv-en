@@ -453,6 +453,12 @@
   window.faOpenModal = function (id) { var m = $(id); if (m) m.classList.add("active"); };
   window.faCloseModal = function (id) { var m = $(id); if (m) m.classList.remove("active"); };
   window.faLogout = function () { fetch("/auth/logout", { method: "POST", credentials: "include" }).catch(function () {}).finally(function () { window.location.href = "/public/login.html"; }); };
+  window.faGoDashboard = function () {
+    var u = {}; try { u = JSON.parse(localStorage.getItem("driven_user") || "{}"); } catch (e) {}
+    var role = String(u.role || u.role_name || u.role_id || "").toLowerCase();
+    var isAdmin = u.is_admin === true || u.isAdmin === true || /admin|owner|super/.test(role);
+    window.location.href = isAdmin ? "/app/dashboard/admin.html" : "/app/dashboard/employee-dashboard.html";
+  };
 
   function loadSettings() {
     fetch("/auth/get-settings", { credentials: "include" }).then(function (r) { return r.json(); }).then(function (data) {
