@@ -50,6 +50,13 @@
   .cd-pill-logout { background-color:#dc2626; color:#fff; border-color:#b91c1c; margin-left:auto; }
   .cd-pill-logout:hover { background-color:#b91c1c; }
 
+  /* ===== UTILITY BAR (matches DQF) ===== */
+  .cd-utility-bar { width:100%; max-width:100%; margin:0; padding:6px 20px; box-sizing:border-box; display:flex; justify-content:flex-end; gap:8px; position:sticky !important; top:var(--header-height,58px) !important; z-index:9998 !important; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
+  :root[data-theme="dark"] .cd-utility-bar { background:#334155; border-bottom-color:#475569; }
+  .cd-utility-btn { padding:6px 14px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; border:2px solid; white-space:nowrap; }
+  .cd-utility-dashboard { background:#2563eb; color:#fff; border-color:#1d4ed8; }
+  .cd-utility-logout { background:#dc2626; color:#fff; border-color:#b91c1c; }
+
   /* ===== CONTENT ===== */
   .cd-main { max-width:1100px; margin:0 auto; padding:20px; box-sizing:border-box; }
   .cd-card { background: var(--bg-card, #fff); border: 2px solid var(--card-green-border, #16a34a); border-radius: 10px; padding: 20px; margin-bottom: 20px; box-sizing: border-box; }
@@ -109,6 +116,13 @@
   <div id="dashHeader"></div>
 </div>
 
+<!-- Utility Bar -->
+<div class="cd-utility-bar">
+  <button class="cd-utility-btn cd-utility-dashboard" onclick="cdGoDashboard()">&#128202; Dashboard</button>
+  <a class="cd-utility-btn cd-utility-dashboard" href="/app/dashboard/driver-qualification-files.html">&#128665; Driver Qualification Files</a>
+  <button class="cd-utility-btn cd-utility-logout" onclick="cdLogout()">&#128682; Logout</button>
+</div>
+
 <!-- Welcome Card -->
 <div class="cd-welcome-bar">
   <div class="cd-welcome-card">
@@ -139,10 +153,7 @@
 <div class="cd-pill-bar">
   <button class="cd-pill-btn cd-pill-purpose" id="cdBtnPurpose">&#9682; Purpose</button>
   <button class="cd-pill-btn cd-pill-instructions" id="cdBtnInstructions">&#9776; Instructions</button>
-  <button class="cd-pill-btn cd-pill-dashboard" onclick="cdGoDashboard()">&#128202; Dashboard</button>
-  <a class="cd-pill-btn cd-pill-dqf" href="/app/dashboard/driver-qualification-files.html">&#128665; Driver Qualification Files</a>
   <a class="cd-pill-btn cd-pill-onboarding" id="cdOnboardingLink" href="/app/dashboard/onboarding-dashboard.html" style="display:none;">&#128203; Onboarding Dashboard</a>
-  <button class="cd-pill-btn cd-pill-logout" onclick="cdLogout()">&#128682; Logout</button>
 </div>
 
 <main class="cd-main">
@@ -281,6 +292,24 @@
 <script src="/app/shared/dashboard-common.js?v=16"></script>
 <script src="/app/shared/auth-check.js?v=13"></script>
 <script src="/app/shared/translate.js?v=3"></script>
-<script src="/app/dashboard/carrier-dashboard.js?v=2"></script>
+<script src="/app/dashboard/carrier-dashboard.js?v=3"></script>
+<script>
+  // Keep --header-height in sync with the actual sticky header so the utility
+  // bar sticks flush to the bottom of the header bar (desktop + mobile).
+  function cdSyncHeaderHeight() {
+    var el = document.getElementById('dashStickyHeader');
+    if (el) {
+      var h = el.offsetHeight || el.getBoundingClientRect().height;
+      if (h > 0) document.documentElement.style.setProperty('--header-height', Math.round(h) + 'px');
+    }
+  }
+  [100, 300, 500, 1000, 2000].forEach(function (d) { setTimeout(cdSyncHeaderHeight, d); });
+  window.addEventListener('load', function () { setTimeout(cdSyncHeaderHeight, 200); });
+  window.addEventListener('resize', cdSyncHeaderHeight);
+  var _dh = document.getElementById('dashHeader');
+  if (_dh && window.MutationObserver) {
+    new MutationObserver(function () { cdSyncHeaderHeight(); }).observe(_dh, { childList: true, subtree: true });
+  }
+</script>
 </body>
 </html>
