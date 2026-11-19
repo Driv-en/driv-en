@@ -247,9 +247,14 @@
     page.drawText("COMPANY REPRESENTATIVE CERTIFICATION", { x: mx, y: y, size: 11, font: fontBold, color: black }); y -= 16;
     page.drawText("I, the undersigned company representative, certify that the documents provided in this packet are true and complete to the best of my knowledge.", { x: mx, y: y, size: 9, font: font, color: black }); y -= 24;
     page.drawText("Signature (Company Representative): ______________________", { x: mx, y: y, size: 10, font: font, color: black }); y -= 20;
-    page.drawText("Printed name: ____________________", { x: mx, y: y, size: 10, font: font, color: black });
-    page.drawText("Title: ____________________", { x: 330, y: y, size: 10, font: font, color: black }); y -= 20;
-    page.drawText("Date: ________________", { x: mx, y: y, size: 10, font: font, color: black }); y -= 20;
+    page.drawText("Printed name: " + (info.prepared_by || "____________________"), { x: mx, y: y, size: 10, font: font, color: black });
+    page.drawText("Title: " + (info.role || "____________________"), { x: 330, y: y, size: 10, font: font, color: black }); y -= 20;
+    page.drawText("Date: ________________", { x: mx, y: y, size: 10, font: font, color: black }); y -= 26;
+    page.drawLine({ start: { x: mx, y: y }, end: { x: 562, y: y }, thickness: 0.5, color: lineCol }); y -= 16;
+    page.drawText("RECEIVED BY (AUDITOR) — optional", { x: mx, y: y, size: 10, font: fontBold, color: black }); y -= 16;
+    page.drawText("Auditor: " + (info.auditor_name || "____________________") + (info.auditor_creds ? "  (" + info.auditor_creds + ")" : ""), { x: mx, y: y, size: 10, font: font, color: black }); y -= 20;
+    page.drawText("Signature: ______________________________", { x: mx, y: y, size: 10, font: font, color: black });
+    page.drawText("Date: ________________", { x: 400, y: y, size: 10, font: font, color: black }); y -= 20;
     page.drawLine({ start: { x: mx, y: y }, end: { x: 562, y: y }, thickness: 0.5, color: lineCol }); y -= 18;
     line("DOCUMENTS INCLUDED", 12, true);
     cats.forEach(function (c, i) {
