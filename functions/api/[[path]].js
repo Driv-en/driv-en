@@ -447,6 +447,81 @@ const TABLE_MAP = {
       'twofa_enabled':        'twofa_enabled',
       'Last Login':           'last_login',
       'last_login':           'last_login',
+      // DQF fields
+      'first_name':              'first_name',
+      'last_name':               'last_name',
+      'employee_number':         'employee_number',
+      'phone':                   'phone',
+      'cdl_class':               'cdl_class',
+      'cdl_endorsements':        'cdl_endorsements',
+      'is_commercial_driver':    'is_commercial_driver',
+      'step2_status':            'step2_status',
+      'compliance_entry_mode':   'compliance_entry_mode',
+      'driving_record_verified':  'driving_record_verified',
+      'driving_record_recheck_date': 'driving_record_recheck_date',
+      'driving_record_status':   'driving_record_status',
+      'driving_record_doc':      'driving_record_doc',
+      'medical_card_expiration': 'medical_card_expiration',
+      'medical_card_status':    'medical_card_status',
+      'medical_card_doc':        'medical_card_doc',
+      'background_check_date':   'background_check_date',
+      'background_check_recheck': 'background_check_recheck',
+      'background_check_status': 'background_check_status',
+      'drug_test_date':          'drug_test_date',
+      'drug_test_recheck':       'drug_test_recheck',
+      'drug_test_status':        'drug_test_status',
+      'auto_policy_status':      'auto_policy_status',
+      'dl_photo_front':          'dl_photo_front',
+      'dl_photo_back':           'dl_photo_back',
+      'dqf_application_date':    'dqf_application_date',
+      'dqf_application_doc':     'dqf_application_doc',
+      'dqf_emp_verification_date': 'dqf_emp_verification_date',
+      'dqf_emp_verification_status': 'dqf_emp_verification_status',
+      'dqf_emp_verification_notes': 'dqf_emp_verification_notes',
+      'dqf_emp_verification_doc': 'dqf_emp_verification_doc',
+      'dqf_annual_mvr_date':     'dqf_annual_mvr_date',
+      'dqf_annual_mvr_reviewer': 'dqf_annual_mvr_reviewer',
+      'dqf_annual_mvr_notes':    'dqf_annual_mvr_notes',
+      'dqf_annual_mvr_doc':      'dqf_annual_mvr_doc',
+      'dqf_annual_violations_date': 'dqf_annual_violations_date',
+      'dqf_annual_violations_cert': 'dqf_annual_violations_cert',
+      'dqf_annual_violations_details': 'dqf_annual_violations_details',
+      'dqf_road_test_date':      'dqf_road_test_date',
+      'dqf_road_test_examiner':  'dqf_road_test_examiner',
+      'dqf_road_test_vehicle':   'dqf_road_test_vehicle',
+      'dqf_road_test_equiv':    'dqf_road_test_equiv',
+      'dqf_road_test_doc':       'dqf_road_test_doc',
+      'dqf_preemp_drug_date':    'dqf_preemp_drug_date',
+      'dqf_preemp_drug_result':  'dqf_preemp_drug_result',
+      'dqf_preemp_drug_doc':     'dqf_preemp_drug_doc',
+      'dqf_drug_test_reason':    'dqf_drug_test_reason',
+      'dqf_alcohol_test_date':   'dqf_alcohol_test_date',
+      'dqf_alcohol_test_reason': 'dqf_alcohol_test_reason',
+      'dqf_alcohol_test_result': 'dqf_alcohol_test_result',
+      'dqf_alcohol_test_doc':    'dqf_alcohol_test_doc',
+      'dqf_medex_name':          'dqf_medex_name',
+      'dqf_medex_registry':     'dqf_medex_registry',
+      'dqf_medex_phone':         'dqf_medex_phone',
+      'dqf_medex_address':       'dqf_medex_address',
+      'dqf_med_variance':        'dqf_med_variance',
+      'dqf_med_variance_num':    'dqf_med_variance_num',
+      'dqf_cdlis_date':           'dqf_cdlis_date',
+      'dqf_cdlis_result':         'dqf_cdlis_result',
+      'dqf_cdlis_doc':            'dqf_cdlis_doc',
+      'dqf_safety_perf_date':     'dqf_safety_perf_date',
+      'dqf_safety_perf_result':   'dqf_safety_perf_result',
+      'dqf_safety_perf_doc':      'dqf_safety_perf_doc',
+      'dqf_hazmat_date':          'dqf_hazmat_date',
+      'dqf_hazmat_result':        'dqf_hazmat_result',
+      'dqf_hazmat_doc':           'dqf_hazmat_doc',
+      'dqf_twic_num':             'dqf_twic_num',
+      'dqf_twic_exp':             'dqf_twic_exp',
+      'dqf_twic_doc':             'dqf_twic_doc',
+      'dqf_additional_docs':      'dqf_additional_docs',
+      'location':                 'location',
+      'project_id':               'project_id',
+      'project_name':             'project_name',
+      'unit_system':              'unit_system',
     },
   },
   'Roles': {
@@ -2634,6 +2709,70 @@ export async function onRequest(context) {
     return json({ error: 'Method not allowed' }, 405);
   }
 
+  // ── PUT /api/dqf/:id — Update DQF profile (dedicated endpoint) ──
+  const dqfMatch = path.match(/^\/api\/dqf\/([^/]+)$/);
+  if (dqfMatch && (method === 'PUT' || method === 'PATCH')) {
+    const authCtx = await getAuthContext(request, env);
+    if (!authCtx.orgId) return json({ error: 'Authentication required' }, 401);
+    const driverId = decodeURIComponent(dqfMatch[1]);
+    let body;
+    try { body = await request.json(); } catch(e) { return json({ error: 'Invalid JSON' }, 400); }
+
+    const allowedFields = [
+      'full_name','first_name','last_name','email','role_id','employee_number','phone',
+      'cdl_class','cdl_endorsements','is_commercial_driver','step2_status','compliance_entry_mode',
+      'driving_record_verified','driving_record_recheck_date','driving_record_status','driving_record_doc',
+      'medical_card_expiration','medical_card_status','medical_card_doc',
+      'background_check_date','background_check_recheck','background_check_status',
+      'drug_test_date','drug_test_recheck','drug_test_status',
+      'auto_policy_status','dl_photo_front','dl_photo_back',
+      'dqf_application_date','dqf_application_doc',
+      'dqf_emp_verification_date','dqf_emp_verification_status','dqf_emp_verification_notes','dqf_emp_verification_doc',
+      'dqf_annual_mvr_date','dqf_annual_mvr_reviewer','dqf_annual_mvr_notes','dqf_annual_mvr_doc',
+      'dqf_annual_violations_date','dqf_annual_violations_cert','dqf_annual_violations_details',
+      'dqf_road_test_date','dqf_road_test_examiner','dqf_road_test_vehicle','dqf_road_test_equiv','dqf_road_test_doc',
+      'dqf_preemp_drug_date','dqf_preemp_drug_result','dqf_preemp_drug_doc',
+      'dqf_drug_test_reason',
+      'dqf_alcohol_test_date','dqf_alcohol_test_reason','dqf_alcohol_test_result','dqf_alcohol_test_doc',
+      'dqf_medex_name','dqf_medex_registry','dqf_medex_phone','dqf_medex_address',
+      'dqf_med_variance','dqf_med_variance_num',
+      'dqf_cdlis_date','dqf_cdlis_result','dqf_cdlis_doc',
+      'dqf_safety_perf_date','dqf_safety_perf_result','dqf_safety_perf_doc',
+      'dqf_hazmat_date','dqf_hazmat_result','dqf_hazmat_doc',
+      'dqf_twic_num','dqf_twic_exp','dqf_twic_doc',
+      'dqf_additional_docs',
+      'location','project_id','project_name','unit_system'
+    ];
+
+    const sets = [];
+    const values = [];
+    for (const [key, val] of Object.entries(body)) {
+      if (allowedFields.includes(key)) {
+        const cleanVal = (val === null || val === undefined || (typeof val === 'string' && val.trim() === '')) ? null : val;
+        sets.push(key + ' = ?');
+        values.push(cleanVal);
+      }
+    }
+
+    if (sets.length === 0) {
+      return json({ error: 'No valid fields to update', received: Object.keys(body) }, 400);
+    }
+
+    sets.push("updated_at = ?");
+    values.push(new Date().toISOString());
+    values.push(driverId);
+    values.push(authCtx.orgId);
+
+    try {
+      await env.DB.prepare(
+        "UPDATE users SET " + sets.join(', ') + " WHERE id = ? AND org_id = ?"
+      ).bind(...values).run();
+      return json({ success: true, updated: sets.length - 1, fields: sets.slice(0, -1).map(s => s.split(' =')[0]) });
+    } catch(e) {
+      return json({ error: 'Database error: ' + e.message }, 500);
+    }
+  }
+
   // Generic Routing for Dynamic Tables
   const match = path.match(/^\/api\/([^/]+)(?:\/([^/]+))?$/);
   if (!match) return json({ error: 'Not found' }, 404);
@@ -2858,4 +2997,3 @@ export async function onRequest(context) {
 
     return json({ error: true, message: e.message }, 500);
   }
-}
