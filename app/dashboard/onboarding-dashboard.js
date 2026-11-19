@@ -27,7 +27,8 @@
     7:  { name: "projects",          task: "Projects",            prereqs: [4],  url: "/app/onboarding/projects.html" },
     8:  { name: "fuel-types",        task: "Fuels, Fluids & Energy", prereqs: [],url: "/app/onboarding/fuel-types.html" },
     9:  { name: "asset-types",       task: "Asset Types",         prereqs: [],   url: "/app/onboarding/asset-types.html" },
-    10: { name: "assets",            task: "Assets",              prereqs: [9],  url: "/app/onboarding/equipment.html" }
+    10: { name: "assets",            task: "Assets",              prereqs: [9],  url: "/app/onboarding/equipment.html" },
+    11: { name: "carrier-info",      task: "Carrier Info",        prereqs: [],   url: "/app/dashboard/carrier-dashboard.html" }
   };
 
   /* ===== SESSION & HEADERS ===== */
@@ -274,7 +275,7 @@
 
   function checkAllComplete() {
     let allDone = true;
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 11; i++) {
       if (!isStepVisible(STEP_DEFS[i].name)) continue;
       if (!isTaskFullyComplete(i)) { allDone = false; break; }
     }
@@ -305,7 +306,7 @@
   }
 
   function updateAssignedLabels() {
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 11; i++) {
       const def = STEP_DEFS[i];
       const el = document.getElementById("assigned-step" + i);
       if (!el) continue;
@@ -377,8 +378,8 @@
   }
 
   function updateAllSteps() {
-    for (let i = 1; i <= 10; i++) { stepCompletion[i] = isTaskFullyComplete(i); }
-    for (let i = 1; i <= 10; i++) { updateStepStatus(i); }
+    for (let i = 1; i <= 11; i++) { stepCompletion[i] = isTaskFullyComplete(i); }
+    for (let i = 1; i <= 11; i++) { updateStepStatus(i); }
     updateAssignedLabels();
     updatePrereqPopups();
   }
@@ -669,7 +670,7 @@
     }
 
     // Step Complete Buttons
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 11; i++) {
       const completeBtn = document.getElementById("btn-complete-step" + i);
       if (completeBtn) {
         completeBtn.addEventListener('click', () => markTaskComplete(i));
@@ -687,7 +688,8 @@
       'btn-info-proj': 'popup-proj',
       'btn-info-ft': 'popup-ft',
       'btn-info-at': 'popup-at',
-      'btn-info-assets': 'popup-assets'
+      'btn-info-assets': 'popup-assets',
+      'btn-info-carrier-info': 'popup-carrier-info'
     };
 
     Object.keys(popupMap).forEach(btnId => {
