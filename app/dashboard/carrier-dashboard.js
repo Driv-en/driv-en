@@ -4,7 +4,7 @@
 
   var CARRIER_FIELDS = [
     'carrier_name', 'carrier_dba', 'carrier_dot', 'carrier_mc', 'carrier_scac',
-    'carrier_address', 'carrier_phone', 'carrier_usdot_pin',
+    'carrier_address', 'carrier_phone',
     'carrier_insurance_name', 'carrier_insurance_policy'
   ];
   var settings = {};
