@@ -13,6 +13,7 @@
   let stepCompletion = {};
   let stepVisibility = {};
   let taskCompletions = {};
+  let lastOnboardingComplete = null;
   let allKP = [];
   let activeOrgId = "";
   let isProcessingSession = false;
@@ -279,9 +280,18 @@
       if (!isStepVisible(STEP_DEFS[i].name)) continue;
       if (!isTaskFullyComplete(i)) { allDone = false; break; }
     }
-    // Persist a flag so other pages (e.g. Carrier Dashboard) can hide the
-    // Onboarding Dashboard link once onboarding is complete.
-    try { localStorage.setItem('driven_onboarding_complete', allDone ? 'true' : 'false'); } catch (e) {}
+    // Persist onboarding_complete to company_settings (server-side source of truth)
+    // so it is shared across the org's devices/users, not just this browser.
+    if (lastOnboardingComplete !== allDone) {
+      lastOnboardingComplete = allDone;
+      try {
+        fetch('/auth/save-settings', {
+          method: 'POST',
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ settings: { onboarding_complete: allDone } })
+        }).catch(function () {});
+      } catch (e) {}
+    }
     return allDone;
   }
 
@@ -534,6 +544,7 @@
       const data = await res.json();
       if (data.success && data.settings) {
         if (data.settings.step_visibility) { stepVisibility = data.settings.step_visibility; }
+        lastOnboardingComplete = Boolean(data.settings.onboarding_complete);
         if (data.settings.onboarding_complete) {
           if (!isAdmin) {
             const completeNotice = document.getElementById("completeNotice");
