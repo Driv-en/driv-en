@@ -58,6 +58,7 @@ var DQF_MODAL_MAP = {
 
     // Load drivers
     await loadDrivers();
+    loadCarrierInfo();
     populateDqfWelcome();
     // Apply saved column order
     if (dqfColOrder && dqfColOrder.length) {
@@ -111,6 +112,24 @@ function wirePersonalization() {
 // ============================================================
 // DATA LOADING
 // ============================================================
+// Load carrier info from company settings into localStorage (used by print/audit)
+async function loadCarrierInfo() {
+  try {
+    var res = await fetch('/auth/get-settings', { credentials: 'include' });
+    var data = await res.json();
+    if (data && data.success && data.settings) {
+      var s = data.settings;
+      if (s.carrier_name) localStorage.setItem('driv_en_carrier_name', s.carrier_name);
+      if (s.carrier_dot) localStorage.setItem('driv_en_dot_number', s.carrier_dot);
+      if (s.carrier_mc) localStorage.setItem('driv_en_mc_number', s.carrier_mc);
+      if (s.carrier_address) localStorage.setItem('driv_en_carrier_address', s.carrier_address);
+      if (s.carrier_phone) localStorage.setItem('driv_en_carrier_phone', s.carrier_phone);
+      if (s.carrier_scac) localStorage.setItem('driv_en_carrier_scac', s.carrier_scac);
+      if (s.dna_model) localStorage.setItem('driv_en_dna_model', s.dna_model);
+    }
+  } catch (e) { /* settings unavailable — print shows placeholder */ }
+}
+
 async function loadDrivers() {
   try {
     var resp = await fetch('/api/employees');
@@ -807,15 +826,19 @@ function printDqfProfile() {
   var carrierDOT = localStorage.getItem('driv_en_dot_number') || '';
   var carrierMC = localStorage.getItem('driv_en_mc_number') || '';
   var carrierAddr = localStorage.getItem('driv_en_carrier_address') || '';
+  var carrierPhone = localStorage.getItem('driv_en_carrier_phone') || '';
+  var carrierScac = localStorage.getItem('driv_en_carrier_scac') || '';
   if (carrierName || carrierDOT || carrierMC) {
     printWin.document.write('<p style="font-size:14px; font-weight:600;">' + esc(carrierName || '') + '</p>');
     printWin.document.write('<p style="font-size:12px; color:#64748b;">');
     if (carrierDOT) printWin.document.write('DOT: ' + esc(carrierDOT) + ' &nbsp; ');
     if (carrierMC) printWin.document.write('MC: ' + esc(carrierMC) + ' &nbsp; ');
+    if (carrierScac) printWin.document.write('SCAC: ' + esc(carrierScac) + ' &nbsp; ');
+    if (carrierPhone) printWin.document.write('<br>Phone: ' + esc(carrierPhone));
     if (carrierAddr) printWin.document.write('<br>' + esc(carrierAddr));
     printWin.document.write('</p>');
   } else {
-    printWin.document.write('<p style="font-size:12px; color:#94a3b8;">Carrier info not configured — add in Admin Settings</p>');
+    printWin.document.write('<p style="font-size:12px; color:#94a3b8;">Carrier info not configured — add in Carrier Dashboard</p>');
   }
   printWin.document.write('<p style="margin-top:8px;">' + esc(name) + ' — Generated ' + new Date().toLocaleString() + '</p></div>');
   var clone = content.cloneNode(true);
