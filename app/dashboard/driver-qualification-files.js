@@ -1068,24 +1068,23 @@ async function saveDqfProfile(complete) {
   var docCheckDriver = Object.assign({}, currentDriver || {}, payload);
   var missingDocs = checkMissingDocuments(docCheckDriver);
   if (missingDocs.length > 0) {
-    // Check if all data fields are filled (dates, statuses, etc.)
-    var dataFields = [
-      'dqf_application_date','dqf_emp_verification_date','dqf_emp_verification_status',
-      'dqf_annual_mvr_date','dqf_road_test_date','dqf_preemp_drug_date',
-      'dqf_cdlis_date','dqf_safety_perf_date','dqf_hazmat_date',
-      'drug_test_date','medical_card_expiration','driving_record_recheck_date',
-      'background_check_date'
+    // Core compliance data fields (the essentials every DQF must have)
+    var coreDataFields = [
+      'cdl_class','medical_card_expiration','driving_record_verified',
+      'drug_test_date','background_check_date'
     ];
-    var missingData = dataFields.filter(function(f) {
+    var missingData = coreDataFields.filter(function(f) {
       var val = docCheckDriver[f];
       return !val || val === '' || val === 'none' || val === 'pending';
     });
     if (missingData.length > 0) {
-      payload.step2_status = 'incomplete';
+      payload.step2_status = 'incomplete';   // core data missing
     } else {
-      payload.step2_status = 'docs_required';
+      payload.step2_status = 'docs_required'; // core data present, just need documents
     }
     complete = false; // Can't mark as complete if documents are missing
+  } else if (complete) {
+    payload.step2_status = 'complete'; // all data + all documents present
   }
 
   console.log('DQF save payload:', payload);
