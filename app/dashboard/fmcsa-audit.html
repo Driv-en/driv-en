@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV-EN | FMCSA Audit</title>
+<meta name="description" content="Generate audit-ready DQF packets per driver for an FMCSA compliance review.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=12">
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", saved || system);
+})();
+</script>
+<style>
+  #dashStickyHeader { position: sticky !important; top: 0 !important; z-index: 100 !important; background: var(--bg-header, #f8fafc) !important; border-bottom: 1px solid var(--border, #cbd5e1) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .fa-utility-bar { width:100%; padding:6px 20px; box-sizing:border-box; display:flex; justify-content:flex-end; gap:8px; position:sticky !important; top:var(--header-height,58px) !important; z-index:9998 !important; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
+  :root[data-theme="dark"] .fa-utility-bar { background:#334155; border-bottom-color:#475569; }
+  .fa-utility-btn { padding:6px 14px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; border:2px solid; white-space:nowrap; }
+  .fa-utility-dashboard { background:#2563eb; color:#fff; border-color:#1d4ed8; }
+  .fa-utility-logout { background:#dc2626; color:#fff; border-color:#b91c1c; }
+  .fa-main { max-width:1100px; margin:0 auto; padding:20px; box-sizing:border-box; }
+  .fa-card { background:var(--bg-card,#fff); border:2px solid var(--card-green-border,#16a34a); border-radius:10px; padding:20px; margin-bottom:20px; box-sizing:border-box; }
+  :root[data-theme="dark"] .fa-card { background:#1e293b; }
+  .fa-card h2 { margin:0 0 6px 0; font-size:18px; color:var(--text,#0f172a); }
+  .fa-card p.fa-sub { margin:0 0 16px 0; font-size:13px; color:var(--text-muted,#64748b); }
+  .fa-input, .fa-select { padding:9px 11px; border:1.5px solid #2563eb; border-radius:6px; font-size:14px; background:var(--bg-card,#fff); color:var(--text,#0f172a); box-sizing:border-box; width:100%; }
+  .fa-input:focus, .fa-select:focus { outline:none; border-color:#16a34a; box-shadow:0 0 0 2px rgba(22,163,74,0.15); }
+  .fa-driver-list { max-height:320px; overflow:auto; border:1px solid var(--border,#e2e8f0); border-radius:8px; }
+  .fa-driver-row { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--border,#e2e8f0); font-size:14px; }
+  .fa-driver-row:hover { background:var(--bg-step,#f8fafc); }
+  .fa-driver-row label { cursor:pointer; flex:1; }
+  .fa-cat-group { margin-bottom:14px; }
+  .fa-cat-group h4 { font-size:13px; margin:0 0 8px 0; color:var(--text-muted,#64748b); text-transform:uppercase; letter-spacing:0.5px; }
+  .fa-cat-item { display:flex; align-items:center; gap:8px; padding:5px 0; font-size:14px; }
+  .fa-btn { padding:10px 22px; background:#16a34a; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:700; cursor:pointer; }
+  .fa-btn:hover { background:#15803d; }
+  .fa-btn:disabled { background:#94a3b8; cursor:not-allowed; }
+  .fa-btn-secondary { background:#2563eb; }
+  .fa-btn-secondary:hover { background:#1d4ed8; }
+  .fa-status { margin-left:12px; font-size:13px; }
+  .fa-pill { display:inline-flex; align-items:center; gap:6px; padding:6px 16px; border-radius:9999px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid transparent; text-decoration:none; }
+  .fa-pill-purpose { background:#0284c7; color:#fff; border-color:#0369a1; }
+  .fa-pill-instructions { background:#8b5cf6; color:#fff; border-color:#7c3aed; }
+  .fa-pill-bar { max-width:1100px; margin:16px auto 0 auto; padding:0 20px; display:flex; gap:12px; flex-wrap:wrap; box-sizing:border-box; }
+  .fa-modal { display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.5); align-items:flex-start; justify-content:center; overflow-y:auto; padding:20px 0; }
+  .fa-modal.active { display:flex; }
+  .fa-modal-content { background:var(--bg-card,#fff); border-radius:10px; max-width:760px; width:92%; margin:20px auto; box-sizing:border-box; }
+  :root[data-theme="dark"] .fa-modal-content { background:#1e293b; }
+  .fa-modal-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:2px solid var(--card-green-border,#16a34a); }
+  .fa-modal-title { font-size:18px; font-weight:700; color:var(--text,#0f172a); }
+  .fa-modal-close { background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-muted,#64748b); }
+  .fa-modal-body { padding:20px; max-height:75vh; overflow-y:auto; font-size:14px; line-height:1.6; color:var(--text,#0f172a); }
+  :root[data-theme="dark"] .fa-modal-body { color:#e2e8f0; }
+  .fa-modal-body h3 { font-size:15px; margin:18px 0 8px 0; }
+  .fa-missing { color:#b45309; font-size:12px; }
+  .fa-ok { color:#16a34a; font-size:12px; }
+  @media (max-width:768px){ .fa-main{padding:12px;} .fa-card{padding:14px;} }
+</style>
+</head>
+<body data-page-title="FMCSA Audit">
+<div class="steel-bg"></div><div class="steel-overlay"></div>
+
+<div id="dashStickyHeader"><div id="dashHeader"></div></div>
+
+<div class="fa-utility-bar">
+  <a class="fa-utility-btn fa-utility-dashboard" href="/app/dashboard/driver-qualification-files.html">&#128665; Driver Qualification Files</a>
+  <a class="fa-utility-btn fa-utility-dashboard" href="/app/dashboard/carrier-dashboard.html">&#127963;&#65039; Carrier Dashboard</a>
+  <button class="fa-utility-btn fa-utility-logout" onclick="faLogout()">&#128682; Logout</button>
+</div>
+
+<div class="fa-pill-bar">
+  <button class="fa-pill fa-pill-purpose" id="faBtnPurpose">&#9682; Purpose</button>
+  <button class="fa-pill fa-pill-instructions" id="faBtnInstructions">&#9776; Instructions</button>
+</div>
+
+<main class="fa-main">
+  <!-- Step 1: Drivers -->
+  <div class="fa-card">
+    <h2>1. Select Drivers</h2>
+    <p class="fa-sub">Select the drivers the auditor asked to review. You can search by name.</p>
+    <input type="text" class="fa-input" id="faDriverSearch" placeholder="Search drivers…" style="margin-bottom:10px;" oninput="faFilterDrivers(this.value)">
+    <div style="margin-bottom:8px; font-size:12px; color:var(--text-muted,#64748b);">
+      <label><input type="checkbox" id="faSelectAll" onchange="faToggleAll(this.checked)"> Select all shown</label>
+      <span id="faDriverCount" style="margin-left:12px;"></span>
+    </div>
+    <div class="fa-driver-list" id="faDriverList"><div style="padding:16px; color:var(--text-muted,#64748b); font-size:13px;">Loading drivers…</div></div>
+  </div>
+
+  <!-- Step 2: Documents -->
+  <div class="fa-card">
+    <h2>2. Select Documents to Include</h2>
+    <p class="fa-sub">Only the items you check will be included in the packet. Drug &amp; Alcohol is a separate category (49 CFR 382.401). Accidents/citations are off by default — include only if the auditor asks.</p>
+    <div id="faCategoryList"></div>
+  </div>
+
+  <!-- Step 3: Generate -->
+  <div class="fa-card">
+    <h2>3. Generate Audit Packet</h2>
+    <p class="fa-sub">One PDF packet per driver: a cover page (carrier info + index of included documents) followed by the selected documents. Missing documents are flagged on the cover page.</p>
+    <div id="faPreflight" style="margin-bottom:14px;"></div>
+    <button class="fa-btn" id="faGenerateBtn" onclick="faGenerate()">Generate Packets</button>
+    <span class="fa-status" id="faStatus"></span>
+  </div>
+</main>
+
+<footer style="text-align:center; padding:20px; font-size:13px; color:var(--text-muted); border-top:1px solid var(--border); margin-top:40px;">
+  <div>DRIV-EN Platform — FMCSA Audit</div>
+  <div style="margin-top:6px;">© <span id="faYear"></span> DRIV-EN Platform. All rights reserved.</div>
+</footer>
+
+<!-- Purpose Modal -->
+<div class="fa-modal" id="faPurposeModal">
+  <div class="fa-modal-content">
+    <div class="fa-modal-header"><div class="fa-modal-title">Purpose — FMCSA Audit</div><button class="fa-modal-close" onclick="faCloseModal('faPurposeModal')">&times;</button></div>
+    <div class="fa-modal-body">
+      <p>This page builds <strong>audit-ready DQF packets</strong> for an FMCSA compliance review. When an auditor hands you a list of drivers and asks to see specific documents, you select those drivers and the documents requested, and DRIV-EN produces a clean, per-driver PDF packet you can hand over or print.</p>
+      <h3>Why per-driver, and why selective</h3>
+      <ul>
+        <li><strong>Per-driver</strong> — auditors review one driver's file at a time, so each packet is a single driver's documents with a cover page.</li>
+        <li><strong>Selective</strong> — you only include what the auditor asked for. You don't volunteer documents that weren't requested.</li>
+        <li><strong>Drug &amp; Alcohol is separate</strong> — under 49 CFR 382.401 those records are kept separately and are usually requested on their own.</li>
+      </ul>
+      <h3>What each packet contains</h3>
+      <ul>
+        <li>A <strong>cover page</strong>: carrier name/DOT/MC, driver name, date generated, and an index of the selected documents with an on-file status for each.</li>
+        <li>The <strong>actual documents</strong> (images and PDFs) in the order selected, each preceded by an exhibit label.</li>
+        <li>A <strong>DRIV-EN footer</strong>.</li>
+      </ul>
+      <p>If a selected document isn't on file, the cover page flags it as <strong>NOT ON FILE</strong> so you can fix the gap before handing the packet over.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Instructions Modal -->
+<div class="fa-modal" id="faInstructionsModal">
+  <div class="fa-modal-content">
+    <div class="fa-modal-header"><div class="fa-modal-title">Instructions — FMCSA Audit</div><button class="fa-modal-close" onclick="faCloseModal('faInstructionsModal')">&times;</button></div>
+    <div class="fa-modal-body">
+      <h3>Step 1 — Select drivers</h3>
+      <ol>
+        <li>Use the search box to find a driver by name.</li>
+        <li>Check each driver the auditor asked to review. You can select multiple.</li>
+      </ol>
+      <h3>Step 2 — Select documents</h3>
+      <ol>
+        <li><strong>DQF items</strong> are checked by default (Application, Employment Verification, MVR, Medical Certificate, Road Test, Annual MVR Review, CDLIS, Safety Performance, TWIC, Hazmat, DL photos).</li>
+        <li><strong>Drug &amp; Alcohol</strong> is a separate category — check it only if the auditor requested those records (they're kept separately per 382.401).</li>
+        <li><strong>Accidents / Citations</strong> is off by default — include only if the auditor asks.</li>
+      </ol>
+      <h3>Step 3 — Generate</h3>
+      <ol>
+        <li>Review the pre-flight summary — it shows, per selected driver, which selected documents are <strong>NOT ON FILE</strong>.</li>
+        <li>Click <strong>Generate Packets</strong>. DRIV-EN builds one PDF per driver.</li>
+        <li>If you selected one driver, the PDF downloads directly. If you selected several, they download as a single <strong>ZIP</strong>.</li>
+      </ol>
+      <div style="background:#eff6ff; border-left:4px solid #2563eb; padding:12px 14px; border-radius:6px; margin-top:12px; font-size:13px;">
+        <strong>Tip:</strong> Fix any "NOT ON FILE" gaps first by opening the driver's DQF and uploading the missing document, then regenerate. A packet with gaps is still useful, but a complete one is stronger.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="/app/shared/dashboard-common.js?v=16"></script>
+<script src="/app/shared/auth-check.js?v=13"></script>
+<script src="/app/shared/translate.js?v=3"></script>
+<script src="/app/dashboard/fmcsa-audit.js?v=1"></script>
+</body>
+</html>
