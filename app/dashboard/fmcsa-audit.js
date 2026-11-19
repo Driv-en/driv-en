@@ -178,12 +178,12 @@
     return d.toISOString().slice(0, 10);
   }
   function statusLabel(s) {
-    return { current: "Current", "30day": "Expiring (30d)", "7day": "Expiring (7d)", expired: "Expired", none: "—" }[s] || (s || "—");
+    return { current: "Current", "30day": "Expiring (30d)", "7day": "Expiring (7d)", expired: "Expired", none: "—", Missing: "Missing", "On File": "On File" }[s] || (s || "—");
   }
   function statusColor(PDFLib, s) {
-    if (s === "current") return PDFLib.rgb(0.09, 0.64, 0.29);
+    if (s === "current" || s === "On File") return PDFLib.rgb(0.09, 0.64, 0.29);
     if (s === "30day" || s === "7day") return PDFLib.rgb(0.85, 0.47, 0.02);
-    if (s === "expired") return PDFLib.rgb(0.86, 0.15, 0.15);
+    if (s === "expired" || s === "Missing") return PDFLib.rgb(0.86, 0.15, 0.15);
     return PDFLib.rgb(0.4, 0.4, 0.4);
   }
   function summaryRowFor(key, d) {
@@ -211,6 +211,7 @@
     info = info || {};
     var PDFLib = window.PDFLib;
     var pdfDoc = await PDFLib.PDFDocument.create();
+    try { pdfDoc.setTitle("DQF Audit Packet — " + driverName(driver)); pdfDoc.setAuthor("DRIV-EN"); pdfDoc.setProducer("DRIV-EN"); } catch (e) {}
     var font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
     var fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
     var green = PDFLib.rgb(0.09, 0.64, 0.29), gray = PDFLib.rgb(0.45, 0.45, 0.45), black = PDFLib.rgb(0.1, 0.1, 0.1), lineCol = PDFLib.rgb(0.8, 0.8, 0.8);
@@ -281,10 +282,11 @@
     sum.drawLine({ start: { x: mx, y: sy }, end: { x: 562, y: sy }, thickness: 1, color: lineCol }); sy -= 16;
     cats.forEach(function (c) {
       var row = summaryRowFor(c.key, driver);
+      var has = driverHasDoc(driver, c);
       if (sy < 70) { sum = pdfDoc.addPage([612, 792]); sy = 740; }
       sum.drawText(String(row.item).substring(0, 40), { x: mx, y: sy, size: 9, font: font, color: black });
       sum.drawText(String(row.dates || "—").substring(0, 42), { x: 250, y: sy, size: 9, font: font, color: black });
-      var st = row.status || "";
+      var st = has ? (row.status || "On File") : "Missing";
       sum.drawText(statusLabel(st), { x: 480, y: sy, size: 9, font: fontBold, color: statusColor(PDFLib, st) });
       sy -= 15;
       sum.drawLine({ start: { x: mx, y: sy + 4 }, end: { x: 562, y: sy + 4 }, thickness: 0.4, color: lineCol });
