@@ -52,6 +52,7 @@ var BUSINESS_TYPE_DEFAULTS = {
 
 var STEP_DEFS = [
   { key: 'roles-permissions', label: 'Roles & Permissions', desc: 'Define roles and access levels', locked: true },
+  { key: 'carrier-info', label: 'Carrier Info', desc: 'DOT, MC, insurance, and drug & alcohol record-keeping', locked: false },
   { key: 'employees', label: 'Employees', desc: 'Add all employees', locked: true },
   { key: 'locations', label: 'Locations', desc: 'Plants, mines, facilities, warehouses, job sites', locked: false },
   { key: 'clients', label: 'Clients', desc: 'Add clients and customer organizations', locked: false },
