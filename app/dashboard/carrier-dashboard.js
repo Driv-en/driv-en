@@ -18,6 +18,72 @@
     el.style.color = ok ? 'var(--success,#16a34a)' : 'var(--error,#ef4444)';
   }
 
+  function getUser() {
+    var u = window.dashUser || window.drivenUser;
+    if (!u) { try { u = JSON.parse(localStorage.getItem('driven_user') || sessionStorage.getItem('driven_user') || '{}'); } catch (e) { u = {}; } }
+    window.dashUser = u;
+    return u;
+  }
+
+  function isAdminUser(u) {
+    if (!u) return false;
+    if (u.is_admin === true || u.isAdmin === true) return true;
+    var role = String(u.role || u.role_name || u.role_id || '').toLowerCase();
+    return /admin|owner|super/.test(role);
+  }
+
+  // Route to the correct dashboard for this user (admin vs employee)
+  window.cdGoDashboard = function () {
+    var u = getUser();
+    window.location.href = isAdminUser(u) ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
+  };
+
+  window.cdLogout = function () {
+    fetch('/auth/logout', { method: 'POST', credentials: 'include' })
+      .catch(function () {})
+      .finally(function () { window.location.href = '/public/login.html'; });
+  };
+
+  window.cdOpenModal = function (id) { var m = $(id); if (m) m.classList.add('active'); };
+  window.cdCloseModal = function (id) { var m = $(id); if (m) m.classList.remove('active'); };
+
+  function populateWelcome() {
+    var u = getUser();
+    var orgName = u.org_name || u.company_name || localStorage.getItem('driven_org_name') || '';
+    var nameEl = $('cd-welcome-name');
+    if (nameEl) {
+      var fn = u.first_name || u.firstName || '';
+      var ln = u.last_name || u.lastName || '';
+      var full = u.full_name || u.name || '';
+      var name = full || ((fn + ' ' + ln).trim()) || '';
+      nameEl.textContent = name ? ('Welcome back, ' + name + (orgName ? ' \u2014 ' + orgName : '')) : 'Welcome back';
+    }
+    var roleEl = $('cd-welcome-role');
+    if (roleEl) roleEl.textContent = u.role || u.role_name || u.role_id || '';
+    var emailEl = $('cd-welcome-email');
+    if (emailEl) emailEl.textContent = u.email || '';
+  }
+
+  function wireTheme() {
+    var cb = $('cdThemeCheckbox');
+    if (!cb) return;
+    var current = document.documentElement.getAttribute('data-theme') || 'light';
+    cb.checked = (current === 'dark');
+    cb.addEventListener('change', function () {
+      var t = cb.checked ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+      localStorage.setItem('driven-theme', t);
+    });
+  }
+
+  // Show the Onboarding Dashboard link only while onboarding is NOT complete
+  function updateOnboardingLink() {
+    var link = $('cdOnboardingLink');
+    if (!link) return;
+    var complete = localStorage.getItem('driven_onboarding_complete') === 'true';
+    link.style.display = complete ? 'none' : 'inline-flex';
+  }
+
   function toggleTpaFields() {
     var model = $('dna_model');
     var tpa = $('dnaTpaFields');
@@ -69,7 +135,6 @@
       if (!res.ok || !data.success) throw new Error(data.error || 'Save failed');
       Object.assign(settings, payload);
       setStatus(statusId, 'Saved.', true);
-      // Mark Carrier Info onboarding task complete
       markCarrierTaskComplete();
     } catch (e) {
       setStatus(statusId, e.message || 'Could not save.', false);
@@ -116,21 +181,19 @@
     } catch (e) {}
   }
 
-  window.cdLogout = function () {
-    fetch('/auth/logout', { method: 'POST', credentials: 'include' })
-      .catch(function () {})
-      .finally(function () { window.location.href = '/public/login.html'; });
-  };
-
   document.addEventListener('DOMContentLoaded', function () {
     var y = $('dashFooterYear');
     if (y) y.textContent = new Date().getFullYear();
-    var sc = $('saveCarrierBtn');
-    if (sc) sc.addEventListener('click', saveCarrier);
-    var sd = $('saveDnaBtn');
-    if (sd) sd.addEventListener('click', saveDna);
-    var dm = $('dna_model');
-    if (dm) dm.addEventListener('change', toggleTpaFields);
+    populateWelcome();
+    wireTheme();
+    updateOnboardingLink();
+
+    var sc = $('saveCarrierBtn'); if (sc) sc.addEventListener('click', saveCarrier);
+    var sd = $('saveDnaBtn'); if (sd) sd.addEventListener('click', saveDna);
+    var dm = $('dna_model'); if (dm) dm.addEventListener('change', toggleTpaFields);
+    var bp = $('cdBtnPurpose'); if (bp) bp.addEventListener('click', function () { cdOpenModal('cdPurposeModal'); });
+    var bi = $('cdBtnInstructions'); if (bi) bi.addEventListener('click', function () { cdOpenModal('cdInstructionsModal'); });
+
     loadSettings();
   });
 })();
