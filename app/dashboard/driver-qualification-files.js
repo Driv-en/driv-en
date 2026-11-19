@@ -1027,10 +1027,21 @@ async function saveDqfProfile(complete) {
   }
 
   try {
-    await fetch('/api/employees/' + encodeURIComponent(currentDriverId), {
+    var saveResp = await fetch('/api/employees/' + encodeURIComponent(currentDriverId), {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
     });
-  } catch(e) { console.warn('Save failed:', e); }
+    var saveData = await saveResp.json();
+    if (!saveResp.ok) {
+      showToast('Save failed: ' + (saveData.error || saveData.message || 'HTTP ' + saveResp.status), 'error');
+      console.error('DQF save error:', saveData);
+      return;
+    }
+    console.log('DQF save success:', saveData);
+  } catch(e) {
+    showToast('Save failed: ' + e.message, 'error');
+    console.warn('Save failed:', e);
+    return;
+  }
 
   // Save assets
   var cards = document.querySelectorAll('.dqf-asset-card');
