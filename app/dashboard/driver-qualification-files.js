@@ -485,7 +485,8 @@ function renderProfile(d) {
   var missingDocs = checkMissingDocuments(d);
   if (missingDocs.length > 0) {
     html += '<div style="margin-bottom:16px; padding:10px 14px; background:#fef3c7; border:1px solid #fbbf24; border-radius:8px; font-size:13px; color:#92400e;">' +
-      '<strong>⚠️ Missing Documents:</strong> ' + missingDocs.join(', ') + '. The file cannot be marked complete until these are uploaded.</div>';
+      '<strong>⚠️ Missing Documents:</strong> ' + missingDocs.join(', ') + '. The file cannot be marked complete until these are uploaded.<br>' +
+      '<span style="font-size:11px; color:#b45309;">Fields highlighted in yellow need information. Upload documents using the file inputs below.</span></div>';
   }
 
   // Driver Compliance
@@ -677,6 +678,25 @@ function renderProfile(d) {
   document.getElementById('dqfProfileContent').innerHTML = html;
   // Filter endorsements based on current CDL class
   setTimeout(function() { updateCdlEndorsements(); }, 0);
+  // Highlight empty fields with yellow background (needs attention)
+  setTimeout(function() {
+    var inputs = document.querySelectorAll('#dqfProfileContent input[type=date], #dqfProfileContent input[type=text], #dqfProfileContent select, #dqfProfileContent textarea');
+    inputs.forEach(function(el) {
+      if (!el.value || el.value === '' || el.value === 'none') {
+        el.style.backgroundColor = '#fef3c7';
+        el.style.borderColor = '#f59e0b';
+      } else {
+        el.style.backgroundColor = '';
+        el.style.borderColor = '';
+      }
+    });
+    // Highlight document upload rows with "Missing" badge
+    var missingBadges = document.querySelectorAll('#dqfProfileContent .um-status-none');
+    missingBadges.forEach(function(badge) {
+      var row = badge.closest('.dqf-file-row');
+      if (row) row.style.backgroundColor = '#fef3c7';
+    });
+  }, 50);
 }
 
 // ============================================================
