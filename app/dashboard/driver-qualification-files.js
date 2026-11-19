@@ -19,11 +19,11 @@ var DQF_MODAL_MAP = {
   },
   list: {
     purpose: 'The <strong>Driver List</strong> shows all commercial drivers and their current compliance status for each required item. Status badges are color-coded: green (current), yellow (30 days), orange (7 days), red (expired), gray (not set). Use the <strong>Import from Competitor</strong> button to bulk-import drivers from J.J. Keller, Tenstreet, Motive/Samsara, or any CSV.',
-    instructions: '<ol><li><strong>Review Status:</strong> Each row shows the driver name, CDL class, and status badges for DL, Medical Card, Drug Test, Background Check, and Auto Policy.</li><li><strong>Import from Competitor:</strong> Click the green <strong>&#128230; Import from Competitor</strong> button to upload a CSV from J.J. Keller, Tenstreet, Motive/Samsara, or any generic format. The wizard auto-maps columns, validates data, previews results, and commits. After import, a compliance checklist shows which drivers are missing required DQF items.</li><li><strong>Open Profile:</strong> Click <strong>Open File</strong> on any row to view and edit the full compliance profile.</li><li><strong>File Status:</strong> The File Status column shows whether the DQF is Pending, Incomplete, or Complete.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Driver List</strong> in the pill bar to return.</li></ol>'
+    instructions: '<ol><li><strong>Review Status:</strong> Each row shows the driver name, CDL class, and status badges for DL, Medical Card, Drug Test, Background Check, and Auto Policy.</li><li><strong>Docs Column:</strong> Shows how many of the 12 required documents are uploaded (e.g., 5/12). Hover to see which documents are present or missing. Green = all uploaded, orange = some missing, red = none uploaded.</li><li><strong>File Status:</strong> The File Status column shows one of three statuses:<br>&bull; <strong>Complete</strong> (green) — all data fields filled AND all 12 required documents uploaded<br>&bull; <strong>Docs Required</strong> (yellow) — all data fields filled but documents still need to be uploaded<br>&bull; <strong>Incomplete</strong> (orange) — data fields are still missing (dates, statuses, etc.)<br>The system automatically determines the status when you save. A file imported from a competitor starts as "Docs Required" since the CSV provides data but not document files.</li><li><strong>Import from Competitor:</strong> Click the green <strong>&#128230; Import from Competitor</strong> button to upload a CSV from J.J. Keller, Tenstreet, Motive/Samsara, or any generic format.</li><li><strong>Open Profile:</strong> Click <strong>Open File</strong> on any row to view and edit the full compliance profile.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Driver List</strong> in the pill bar to return.</li></ol>'
   },
   profile: {
     purpose: 'The <strong>Driver Profile</strong> is the full Driver Qualification File for a single commercial driver. It contains all DOT-required compliance documents and tracking, plus employee-owned assets with insurance and registration expiration tracking.',
-    instructions: '<ol><li><strong>Driver Compliance:</strong> Enter authorized company vehicle status, CDL class and endorsements, and upload DL front/back photos.</li><li><strong>Driving Record:</strong> Enter verified date, recheck date, and upload the driving record document. Status auto-calculates.</li><li><strong>DOT Medical Card:</strong> Enter expiration date and upload the document. Status auto-calculates.</li><li><strong>Background Check:</strong> Enter check date and recheck date. Status auto-calculates.</li><li><strong>Drug Test:</strong> Enter test date and recheck date. Status auto-calculates.</li><li><strong>Employee-Owned Assets:</strong> Toggle "Will this driver provide personal assets?" If yes, click <strong>+ Add Asset</strong> for each asset (truck, welding machine, etc.). For vehicles, enter insurance carrier, policy number, expiration, and upload the insurance document. Insurance status auto-calculates with 30-day and 7-day warnings.</li><li><strong>Save:</strong> Click <strong>Save &amp; Complete</strong> to mark the file as complete, or <strong>Save &amp; Come Back Later</strong> if documents are still being collected.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Driver List</strong> to return to the list.</li></ol>'
+    instructions: '<ol><li><strong>Driver Compliance:</strong> Enter authorized company vehicle status, CDL class and endorsements, and upload DL front/back photos.</li><li><strong>Driving Record:</strong> Enter verified date, recheck date, and upload the driving record document. Status auto-calculates.</li><li><strong>DOT Medical Card:</strong> Enter expiration date and upload the document. Status auto-calculates.</li><li><strong>Background Check:</strong> Enter check date and recheck date. Status auto-calculates.</li><li><strong>Drug Test:</strong> Enter test date, reason (Pre-Employment, Post-Accident, Random, Reasonable Suspicion, Return-to-Duty, Follow-Up), and result. Upload the test document.</li><li><strong>Alcohol Test:</strong> Enter test date, reason, and result. Upload the test document.</li><li><strong>FMCSA Compliance:</strong> Fill in all applicable sections — Application (391.21), Employment Verification (391.23), Annual MVR Review (391.25), Road Test (391.31), CDLIS Verification (384.226), Safety Performance History (391.23(h)), Hazmat Background (TSA 1572), TWIC Card (49 CFR 1592). Each section has a document upload field.</li><li><strong>Additional Documents:</strong> Use the additional documents upload at the bottom of the FMCSA section for accident reports, citations, training certificates, or any other relevant documents.</li><li><strong>Document Viewer:</strong> Click the <strong>&#128065; View</strong> button next to any uploaded document to view it. The viewer supports images and PDFs with a print option.</li><li><strong>Employee-Owned Assets:</strong> Toggle \"Will this driver provide personal assets?\" If yes, click <strong>+ Add Asset</strong> for each asset (truck, welding machine, etc.). For vehicles, enter insurance carrier, policy number, expiration, and upload the insurance document. Insurance status auto-calculates with 30-day and 7-day warnings.</li><li><strong>File Status (auto-determined on save):</strong><br>&bull; <strong>Complete</strong> (green) — all data fields filled AND all 12 required documents uploaded<br>&bull; <strong>Docs Required</strong> (yellow) — all data fields filled but documents still need to be uploaded<br>&bull; <strong>Incomplete</strong> (orange) — data fields are still missing (dates, statuses, etc.)</li><li><strong>Save:</strong> Click <strong>Save &amp; Complete</strong> to mark the file as complete (only works if all data AND all 12 documents are uploaded), or <strong>Save &amp; Come Back Later</strong> to save progress. The system automatically sets the file status based on the criteria above.</li><li><strong>Print / PDF:</strong> Click <strong>&#128424; Print / PDF</strong> to generate a printable DQF summary with carrier info and all compliance data. Use your browser\'s print dialog to print or save as PDF.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Driver List</strong> to return to the list.</li></ol>'
   }
 };
 
@@ -138,10 +138,13 @@ function updateKpis() {
   }).length;
   // Documents Needed: drivers missing one or more required documents
   var docsNeeded = allDrivers.filter(function(d) {
-    return !d.dl_photo_front || !d.dl_photo_back || !d.driving_record_doc || !d.medical_card_doc || !d.dqf_application_doc;
+    return DQF_REQUIRED_DOCS.some(function(doc) { return !d[doc.field]; });
   }).length;
   var docsEl = document.getElementById('kpiDocsNeeded');
   if (docsEl) docsEl.textContent = docsNeeded;
+  // Docs Required status count
+  var docsReqEl = document.getElementById('kpiDocsRequired');
+  if (docsReqEl) docsReqEl.textContent = allDrivers.filter(function(d) { return d.step2_status === 'docs_required'; }).length;
 }
 
 function checkReminders() {
@@ -414,6 +417,7 @@ function badge(status) {
 function fileStatusBadge(s) {
   if (!s || s === 'pending') return '<span class="um-status-badge um-status-pending">Pending</span>';
   if (s === 'incomplete') return '<span class="um-status-badge um-status-7day">Incomplete</span>';
+  if (s === 'docs_required') return '<span class="um-status-badge um-status-30day">Docs Required</span>';
   if (s === 'complete') return '<span class="um-status-badge um-status-current">Complete</span>';
   if (s === 'not_needed') return '<span class="um-status-badge um-status-none">N/A</span>';
   return '<span class="um-status-badge um-status-none">—</span>';
@@ -1037,11 +1041,30 @@ async function saveDqfProfile(complete) {
     }
   }
 
-  // Document status logic: if required documents are missing, file is incomplete
+  // Document status logic: three-tier status
+  // Complete = all data + all documents
+  // Docs Required = all data filled but documents missing
+  // Incomplete = data fields still missing
   var docCheckDriver = Object.assign({}, currentDriver || {}, payload);
   var missingDocs = checkMissingDocuments(docCheckDriver);
   if (missingDocs.length > 0) {
-    payload.step2_status = 'incomplete';
+    // Check if all data fields are filled (dates, statuses, etc.)
+    var dataFields = [
+      'dqf_application_date','dqf_emp_verification_date','dqf_emp_verification_status',
+      'dqf_annual_mvr_date','dqf_road_test_date','dqf_preemp_drug_date',
+      'dqf_cdlis_date','dqf_safety_perf_date','dqf_hazmat_date',
+      'drug_test_date','medical_card_expiration','driving_record_recheck_date',
+      'background_check_date'
+    ];
+    var missingData = dataFields.filter(function(f) {
+      var val = docCheckDriver[f];
+      return !val || val === '' || val === 'none' || val === 'pending';
+    });
+    if (missingData.length > 0) {
+      payload.step2_status = 'incomplete';
+    } else {
+      payload.step2_status = 'docs_required';
+    }
     complete = false; // Can't mark as complete if documents are missing
   }
 
