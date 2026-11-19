@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV-EN | Carrier Dashboard</title>
+<meta name="description" content="Carrier / DOT compliance information and drug & alcohol record-keeping settings.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=12">
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", saved || system);
+})();
+</script>
+<style>
+  #dashStickyHeader { position: sticky !important; top: 0 !important; z-index: 100 !important; background: var(--bg-header, #f8fafc) !important; border-bottom: 1px solid var(--border, #cbd5e1) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .cd-tab-bar { max-width: 1100px; margin: 8px auto; padding: 8px 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: #cbd5e1; border-radius: 8px; border: 1.5px solid #94a3b8; }
+  .cd-tab { padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none; color: #0f172a; background: #e2e8f0; border: 1px solid #94a3b8; cursor: pointer; }
+  .cd-tab:hover { background: #cbd5e1; }
+  .cd-tab-primary { background: #16a34a; color: #fff; border-color: #15803d; }
+  .cd-tab-primary:hover { background: #15803d; }
+  .cd-tab-logout { margin-left: auto; background: #dc2626; color: #fff; border-color: #b91c1c; }
+  .cd-main { max-width: 1100px; margin: 0 auto; padding: 20px; box-sizing: border-box; }
+  .cd-card { background: var(--bg-card, #fff); border: 2px solid var(--card-green-border, #16a34a); border-radius: 10px; padding: 20px; margin-bottom: 20px; box-sizing: border-box; }
+  .cd-card h2 { margin: 0 0 6px 0; font-size: 18px; color: var(--text, #0f172a); }
+  .cd-card p.cd-sub { margin: 0 0 18px 0; font-size: 13px; color: var(--text-muted, #64748b); }
+  .cd-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 14px; }
+  .cd-field { display: flex; flex-direction: column; }
+  .cd-field label { font-size: 12px; font-weight: 600; color: var(--text-muted, #64748b); margin-bottom: 5px; }
+  .cd-field input, .cd-field select { padding: 9px 11px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; font-size: 14px; background: var(--bg-card, #fff); color: var(--text, #0f172a); box-sizing: border-box; width: 100%; }
+  .cd-field input:focus, .cd-field select:focus { outline: none; border-color: #16a34a; }
+  .cd-btn { padding: 10px 22px; background: #16a34a; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .cd-btn:hover { background: #15803d; }
+  .cd-status { margin-left: 12px; font-size: 13px; }
+  .cd-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--border, #e2e8f0); }
+  .cd-toggle-name { font-size: 14px; font-weight: 600; color: var(--text, #0f172a); }
+  .cd-toggle-desc { font-size: 12px; color: var(--text-muted, #64748b); margin-top: 2px; }
+  .cd-switch { position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0; }
+  .cd-switch input { opacity: 0; width: 0; height: 0; }
+  .cd-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #cbd5e1; border-radius: 26px; transition: .2s; }
+  .cd-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  .cd-switch input:checked + .cd-slider { background: #16a34a; }
+  .cd-switch input:checked + .cd-slider:before { transform: translateX(22px); }
+  .cd-note { font-size: 12px; color: var(--text-muted, #64748b); background: #f1f5f9; border-radius: 6px; padding: 10px 12px; margin-top: 8px; }
+  @media (max-width: 768px) { .cd-main { padding: 12px; } .cd-card { padding: 14px; } .cd-tab-logout { margin-left: 0; } }
+</style>
+</head>
+<body data-page-title="Carrier Dashboard">
+<div class="steel-bg"></div>
+<div class="steel-overlay"></div>
+
+<div id="dashStickyHeader">
+  <div id="dashHeader"></div>
+  <div class="cd-tab-bar">
+    <a class="cd-tab" href="/app/dashboard/admin.html">Admin Dashboard</a>
+    <a class="cd-tab" href="/app/dashboard/onboarding-dashboard.html">&larr; Onboarding Dashboard</a>
+    <a class="cd-tab cd-tab-primary" href="/app/dashboard/driver-qualification-files.html">Driver Qualification Files &rarr;</a>
+    <button class="cd-tab cd-tab-logout" onclick="cdLogout()">Logout</button>
+  </div>
+</div>
+
+<main class="cd-main">
+  <!-- Carrier / DOT Compliance Info -->
+  <div class="cd-card">
+    <h2>Carrier / DOT Compliance Info</h2>
+    <p class="cd-sub">This information appears on the DQF printout and FMCSA Audit packets. Required for audit-ready documents.</p>
+    <div class="cd-row">
+      <div class="cd-field"><label>Legal Carrier Name</label><input type="text" id="carrier_name" placeholder="e.g. Acme Trucking LLC"></div>
+      <div class="cd-field"><label>DBA Name (if different)</label><input type="text" id="carrier_dba" placeholder="e.g. Acme Transport"></div>
+    </div>
+    <div class="cd-row">
+      <div class="cd-field"><label>USDOT Number</label><input type="text" id="carrier_dot" placeholder="e.g. 1234567"></div>
+      <div class="cd-field"><label>MC Number</label><input type="text" id="carrier_mc" placeholder="e.g. MC-123456"></div>
+      <div class="cd-field"><label>SCAC Code</label><input type="text" id="carrier_scac" placeholder="e.g. ACME"></div>
+    </div>
+    <div class="cd-row">
+      <div class="cd-field"><label>Physical Address</label><input type="text" id="carrier_address" placeholder="Street, City, State ZIP"></div>
+      <div class="cd-field"><label>Phone</label><input type="text" id="carrier_phone" placeholder="e.g. (555) 123-4567"></div>
+    </div>
+    <div class="cd-row">
+      <div class="cd-field"><label>USDOT PIN</label><input type="text" id="carrier_usdot_pin" placeholder="For FMCSA portal access"></div>
+      <div class="cd-field"><label>Insurance Carrier</label><input type="text" id="carrier_insurance_name" placeholder="e.g. Great West Casualty"></div>
+      <div class="cd-field"><label>Insurance Policy #</label><input type="text" id="carrier_insurance_policy" placeholder="e.g. GW-123456"></div>
+    </div>
+    <button class="cd-btn" id="saveCarrierBtn">Save Carrier Info</button>
+    <span class="cd-status" id="carrierStatus"></span>
+  </div>
+
+  <!-- Drug & Alcohol Record-Keeping -->
+  <div class="cd-card">
+    <h2>Drug &amp; Alcohol Record-Keeping</h2>
+    <p class="cd-sub">Tell DRIV-EN how your company maintains drug &amp; alcohol testing records. The FMCSA Audit packet adapts to this choice.</p>
+    <div class="cd-field" style="margin-bottom:16px;">
+      <label>How are drug &amp; alcohol records maintained?</label>
+      <select id="dna_model">
+        <option value="driven">DRIV-EN holds the records (enter tests in the driver profile)</option>
+        <option value="tpa">Third-Party Administrator (TPA) holds the records</option>
+        <option value="clearinghouse">FMCSA Clearinghouse only</option>
+        <option value="physical">Physical secure file</option>
+      </select>
+    </div>
+    <div id="dnaTpaFields" style="display:none;">
+      <div class="cd-row">
+        <div class="cd-field"><label>TPA Name</label><input type="text" id="dna_tpa_name" placeholder="e.g. DISA Global Solutions"></div>
+        <div class="cd-field"><label>TPA Contact (phone/email)</label><input type="text" id="dna_tpa_contact" placeholder="e.g. (800) 555-1234"></div>
+        <div class="cd-field"><label>TPA Account #</label><input type="text" id="dna_tpa_account" placeholder="Optional"></div>
+      </div>
+    </div>
+    <div class="cd-toggle-row">
+      <div>
+        <div class="cd-toggle-name">Track FMCSA Clearinghouse Queries</div>
+        <div class="cd-toggle-desc">Record pre-employment and annual Clearinghouse query dates/results (free — no cost to DRIV-EN)</div>
+      </div>
+      <label class="cd-switch"><input type="checkbox" id="clearinghouse_tracking"><span class="cd-slider"></span></label>
+    </div>
+    <div class="cd-note" id="dnaModelNote"></div>
+    <div style="margin-top:16px;">
+      <button class="cd-btn" id="saveDnaBtn">Save Drug &amp; Alcohol Settings</button>
+      <span class="cd-status" id="dnaStatus"></span>
+    </div>
+  </div>
+</main>
+
+<footer id="dashFooter" style="text-align:center; padding:20px; font-size:13px; color:var(--text-muted); border-top:1px solid var(--border); margin-top:40px;">
+  <div>DRIV-EN Platform — Carrier Dashboard</div>
+  <div style="margin-top:6px;">© <span id="dashFooterYear"></span> DRIV-EN Platform. All rights reserved.</div>
+</footer>
+
+<script src="/app/shared/dashboard-common.js?v=16"></script>
+<script src="/app/shared/auth-check.js?v=13"></script>
+<script src="/app/shared/translate.js?v=3"></script>
+<script src="/app/dashboard/carrier-dashboard.js?v=1"></script>
+</body>
+</html>
