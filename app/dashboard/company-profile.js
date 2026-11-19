@@ -352,6 +352,7 @@ async function loadDivisions() {
   }
   renderDivTable();
   populateDivisionDropdowns();
+  updateOverviewKpis();
 }
 
 function showDivError(msg) {
@@ -581,6 +582,14 @@ async function loadLocations() {
     if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report(e.message, 'loadLocations', e.stack);
   }
   renderLocTable();
+  updateOverviewKpis();
+}
+
+function updateOverviewKpis() {
+  var d = document.getElementById('kpiDivisions');
+  if (d) d.textContent = allDivisions.length;
+  var l = document.getElementById('kpiLocations');
+  if (l) l.textContent = allLocations.length;
 }
 
 function showLocError(msg) {
@@ -863,8 +872,8 @@ function printLocations() {
 // ============================================================
 var CM_MODAL_CONTENT = {
   overview: {
-    purpose: 'The <strong>Company Profile</strong> page is the central hub for managing your organization\'s structural hierarchy. From here, administrators can create, edit, and manage <strong>Divisions</strong> and <strong>Locations</strong> that define how the organization is segmented for reporting, asset assignment, and operational oversight.',
-    instructions: '<ol><li><strong>Overview Tab:</strong> View a summary of your organization\'s divisions and locations at a glance.</li><li><strong>Divisions Tab:</strong> Create new divisions, search and filter existing ones, edit or delete divisions. Each division can have a name, division code, manager, description, and status.</li><li><strong>Locations Tab:</strong> Create new locations, search and filter existing ones, edit or delete locations. Each location can have a name, location code, type, address, city, state, zip code, assigned division, and status.</li><li><strong>Add Division/Location:</strong> Use the respective "Add" tabs to create new entries with a simple form.</li><li><strong>Print:</strong> Use the "Print" button on either the Divisions or Locations tab to print the current list.</li><li><strong>Columns:</strong> Use the "Columns" button on either tab to show/hide columns or drag them to reorder. Drag column headers left/right to rearrange. Drag the right edge of a column header to resize it, just like a spreadsheet.</li><li><strong>Sort:</strong> Click any column header to sort the table by that column. Click again to reverse the sort order.</li></ol>'
+    purpose: 'The <strong>Company Profile</strong> page is the central hub for managing your organization\'s structural hierarchy. It defines how the company is segmented for reporting, asset assignment, and operational oversight through two building blocks: <strong>Divisions</strong> (high-level segments such as Operations, Maintenance, or Administration) and <strong>Locations</strong> (physical sites). The Overview shows a live count of each so you can see your structure at a glance.',
+    instructions: '<ol><li><strong>Overview cards:</strong> The Overview tab shows two KPI cards — <strong>Divisions</strong> and <strong>Locations</strong> — each displaying the current count. Click a card to open that section.</li><li><strong>Divisions:</strong> Click the Divisions card to create, search, edit, or delete divisions. Each division has a name, division code, manager, description, and status.</li><li><strong>Locations:</strong> Click the Locations card to create, search, edit, or delete locations. Each location has a name, location code, type, address, city, state, zip code, assigned division, and status.</li><li><strong>Add entries:</strong> Inside each section, use the <strong>Add New</strong> tab to create a new division or location (name is required).</li><li><strong>Return to Overview:</strong> Click the <strong>Overview</strong> tab at the top of the page to return to the cards.</li><li><strong>Search &amp; filter:</strong> Each section has a search box and a status filter to narrow the list.</li><li><strong>Sort:</strong> Click any column header to sort ascending; click again to reverse.</li><li><strong>Columns:</strong> Use the <strong>Columns</strong> button to show/hide columns, drag headers to reorder, or drag a header\'s right edge to resize — like a spreadsheet. Your layout is saved on this device.</li><li><strong>Print:</strong> Use the <strong>Print</strong> button in either section to print the current filtered list using only the visible columns.</li></ol>'
   },
   divisions: {
     purpose: 'The <strong>Divisions Tab</strong> allows administrators to define and manage the organizational divisions within the company. Divisions represent high-level segments of the organization (e.g., Operations, Maintenance, Administration) and can be assigned to locations for hierarchical grouping.',
