@@ -9,6 +9,7 @@
 var allDrivers = [];
 var currentDriverId = null;
 var currentDriver = null;
+var dnaSettings = { model: 'driven', tpa_name: '', tpa_contact: '', tpa_account: '', clearinghouse_tracking: false };
 var currentUserOrgId = '';
 var step2AssetCounter = 0;
 
@@ -23,7 +24,7 @@ var DQF_MODAL_MAP = {
   },
   profile: {
     purpose: 'The <strong>Driver Profile</strong> is the full Driver Qualification File for a single commercial driver. It contains all DOT-required compliance documents and tracking, plus employee-owned assets with insurance and registration expiration tracking.',
-    instructions: '<ol><li><strong>Driver Compliance:</strong> Enter authorized company vehicle status, CDL class and endorsements, and upload DL front/back photos.</li><li><strong>Driving Record:</strong> Enter verified date, recheck date, and upload the driving record document. Status auto-calculates.</li><li><strong>DOT Medical Card:</strong> Enter expiration date and upload the document. Status auto-calculates.</li><li><strong>Background Check:</strong> Enter check date and recheck date. Status auto-calculates.</li><li><strong>Drug Test:</strong> Enter test date, reason (Pre-Employment, Post-Accident, Random, Reasonable Suspicion, Return-to-Duty, Follow-Up), and result. Upload the test document. <em>Note: there is no per-driver annual drug test requirement — random testing is pool-based (382.305). The Drug Test badge therefore shows <strong>On File</strong> or <strong>Missing</strong>, not a date-based current/expired.</em></li><li><strong>Alcohol Test:</strong> Enter test date, reason, and result. Upload the test document.</li><li><strong>Prior Employers (49 CFR 391.23):</strong> You must investigate employment history for the <strong>past 3 years</strong>. Click <strong>+ Add Employer</strong> for each prior employer and record: employer name, from/to dates, inquiry sent date, response received date, and the safety-performance results — <strong>accidents reported</strong>, <strong>drug/alcohol violations</strong>, and <strong>refusal to test</strong> (each Yes/No/Pending, with details). Contact name, phone, fax, email, and address are optional (the address is on the attached form).</li><li><strong>Employer Contact Directory:</strong> Use the <strong>Search known employers</strong> box above the prior-employer list to look up contact info for a former carrier. Selecting a result auto-fills a new employer block with the saved contact details. The directory grows automatically as you save prior employers that have contact info, so the next hire can find that carrier\'s contact quickly.</li><li><strong>FMCSA Compliance:</strong> Fill in all applicable sections — Application (391.21), Employment Verification (391.23), Annual MVR Review (391.25), Road Test (391.31), CDLIS Verification (384.226), Safety Performance History (391.23(h)), Hazmat Background (TSA 1572), TWIC Card (49 CFR 1592). Each section has a document upload field.</li><li><strong>Additional Documents:</strong> Use the additional documents upload at the bottom of the FMCSA section for accident reports, citations, training certificates, or any other relevant documents.</li><li><strong>Document Viewer:</strong> Click the <strong>&#128065; View</strong> button next to any uploaded document to view it. The viewer supports images and PDFs with a print option.</li><li><strong>Employee-Owned Assets:</strong> Toggle \"Will this driver provide personal assets?\" If yes, click <strong>+ Add Asset</strong> for each asset (truck, welding machine, etc.). For vehicles, enter insurance carrier, policy number, expiration, and upload the insurance document. Insurance status auto-calculates with 30-day and 7-day warnings.</li><li><strong>Status badges (computed from actual data):</strong> The DL, Med Card, Background, and Auto Policy badges are calculated from their dates (recheck/expiration), so they are always accurate — even for imported drivers. Drug Test shows On File/Missing.</li><li><strong>File Status (computed from actual data):</strong><br>&bull; <strong>Complete</strong> (green) — core data present AND all 12 required documents uploaded<br>&bull; <strong>Docs Required</strong> (yellow) — core data present but documents still need to be uploaded<br>&bull; <strong>Incomplete</strong> (orange) — core data still missing (CDL, med card, driving record, drug test, background)<br><em>Imported drivers start as Docs Required (data from the CSV, no documents yet) — they are never shown as Complete until documents are uploaded.</em></li><li><strong>Save:</strong> Click <strong>Save &amp; Complete</strong> to mark the file as complete (only works if all data AND all 12 documents are uploaded), or <strong>Save &amp; Come Back Later</strong> to save progress. The system automatically sets the file status based on the criteria above.</li><li><strong>Print / PDF:</strong> Click <strong>&#128424; Print / PDF</strong> to generate a printable DQF summary with carrier info and all compliance data. Use your browser\'s print dialog to print or save as PDF.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Driver List</strong> to return to the list.</li></ol>'
+    instructions: '<ol><li><strong>Driver Compliance:</strong> Enter authorized company vehicle status, CDL class and endorsements, and upload DL front/back photos.</li><li><strong>Driving Record:</strong> Enter verified date, recheck date, and upload the driving record document. Status auto-calculates.</li><li><strong>DOT Medical Card:</strong> Enter expiration date and upload the document. Status auto-calculates.</li><li><strong>Background Check:</strong> Enter check date and recheck date. Status auto-calculates.</li><li><strong>Drug Test:</strong> Enter test date, reason (Pre-Employment, Post-Accident, Random, Reasonable Suspicion, Return-to-Duty, Follow-Up), and result. Upload the test document. <em>Note: there is no per-driver annual drug test requirement — random testing is pool-based (382.305). The Drug Test badge therefore shows <strong>On File</strong> or <strong>Missing</strong>, not a date-based current/expired.</em></li><li><strong>Alcohol Test:</strong> Enter test date, reason, and result. Upload the test document.</li><li><strong>Drug &amp; Alcohol model (from Carrier Dashboard):</strong> The drug/alcohol fields shown here depend on how your company maintains those records. If set to <strong>DRIV-EN holds the records</strong>, you'll see the test entry fields above. If set to <strong>TPA</strong>, <strong>Clearinghouse</strong>, or <strong>Physical file</strong>, you'll see a reference block instead (with your TPA's contact info where applicable) — test entry fields are hidden. If <strong>Clearinghouse query tracking</strong> is enabled, a Clearinghouse Query section (date, type, result) appears so you can record each pre-employment/annual query.</li><li><strong>Prior Employers (49 CFR 391.23):</strong> You must investigate employment history for the <strong>past 3 years</strong>. Click <strong>+ Add Employer</strong> for each prior employer and record: employer name, from/to dates, inquiry sent date, response received date, and the safety-performance results — <strong>accidents reported</strong>, <strong>drug/alcohol violations</strong>, and <strong>refusal to test</strong> (each Yes/No/Pending, with details). Contact name, phone, fax, email, and address are optional (the address is on the attached form).</li><li><strong>Employer Contact Directory:</strong> Use the <strong>Search known employers</strong> box above the prior-employer list to look up contact info for a former carrier. Selecting a result auto-fills a new employer block with the saved contact details. The directory grows automatically as you save prior employers that have contact info, so the next hire can find that carrier\'s contact quickly.</li><li><strong>FMCSA Compliance:</strong> Fill in all applicable sections — Application (391.21), Employment Verification (391.23), Annual MVR Review (391.25), Road Test (391.31), CDLIS Verification (384.226), Safety Performance History (391.23(h)), Hazmat Background (TSA 1572), TWIC Card (49 CFR 1592). Each section has a document upload field.</li><li><strong>Additional Documents:</strong> Use the additional documents upload at the bottom of the FMCSA section for accident reports, citations, training certificates, or any other relevant documents.</li><li><strong>Document Viewer:</strong> Click the <strong>&#128065; View</strong> button next to any uploaded document to view it. The viewer supports images and PDFs with a print option.</li><li><strong>Employee-Owned Assets:</strong> Toggle \"Will this driver provide personal assets?\" If yes, click <strong>+ Add Asset</strong> for each asset (truck, welding machine, etc.). For vehicles, enter insurance carrier, policy number, expiration, and upload the insurance document. Insurance status auto-calculates with 30-day and 7-day warnings.</li><li><strong>Status badges (computed from actual data):</strong> The DL, Med Card, Background, and Auto Policy badges are calculated from their dates (recheck/expiration), so they are always accurate — even for imported drivers. Drug Test shows On File/Missing.</li><li><strong>File Status (computed from actual data):</strong><br>&bull; <strong>Complete</strong> (green) — core data present AND all 12 required documents uploaded<br>&bull; <strong>Docs Required</strong> (yellow) — core data present but documents still need to be uploaded<br>&bull; <strong>Incomplete</strong> (orange) — core data still missing (CDL, med card, driving record, drug test, background)<br><em>Imported drivers start as Docs Required (data from the CSV, no documents yet) — they are never shown as Complete until documents are uploaded.</em></li><li><strong>Save:</strong> Click <strong>Save &amp; Complete</strong> to mark the file as complete (only works if all data AND all 12 documents are uploaded), or <strong>Save &amp; Come Back Later</strong> to save progress. The system automatically sets the file status based on the criteria above.</li><li><strong>Print / PDF:</strong> Click <strong>&#128424; Print / PDF</strong> to generate a printable DQF summary with carrier info and all compliance data. Use your browser\'s print dialog to print or save as PDF.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Driver List</strong> to return to the list.</li></ol>'
   }
 };
 
@@ -126,6 +127,12 @@ async function loadCarrierInfo() {
       if (s.carrier_phone) localStorage.setItem('driv_en_carrier_phone', s.carrier_phone);
       if (s.carrier_scac) localStorage.setItem('driv_en_carrier_scac', s.carrier_scac);
       if (s.dna_model) localStorage.setItem('driv_en_dna_model', s.dna_model);
+      // Drug & alcohol record-keeping model + reference info (drives conditional profile fields)
+      dnaSettings.model = s.dna_model || 'driven';
+      dnaSettings.tpa_name = s.dna_tpa_name || '';
+      dnaSettings.tpa_contact = s.dna_tpa_contact || '';
+      dnaSettings.tpa_account = s.dna_tpa_account || '';
+      dnaSettings.clearinghouse_tracking = Boolean(s.clearinghouse_tracking);
     }
   } catch (e) { /* settings unavailable — print shows placeholder */ }
 }
@@ -463,9 +470,14 @@ function computeDriverStatuses(d) {
   var medCard = calcStatus(d.medical_card_expiration);
   var drivingRecord = calcStatus(d.driving_record_recheck_date || addMonths(d.driving_record_verified, 12));
   var background = calcStatus(d.background_check_recheck || addMonths(d.background_check_date, 12));
-  // Drug tests have no per-driver annual requirement (random is pool-based),
-  // so the badge reflects whether a test is on file, not a date window.
-  var drugTest = (d.drug_test_date || d.dqf_preemp_drug_date) ? 'on_file' : 'missing';
+  // Drug tests have no per-driver annual requirement (random is pool-based).
+  // When records are held elsewhere (TPA/Clearinghouse/physical), show 'external'.
+  var drugTest;
+  if (dnaSettings.model === 'driven') {
+    drugTest = (d.drug_test_date || d.dqf_preemp_drug_date) ? 'on_file' : 'missing';
+  } else {
+    drugTest = 'external';
+  }
   var autoPolicy = d.auto_policy_status || 'none';
   return {
     medical_card_status: medCard,
@@ -478,6 +490,7 @@ function computeDriverStatuses(d) {
 
 function drugTestBadge(status) {
   if (status === 'on_file') return '<span class="um-status-badge um-status-current">On File</span>';
+  if (status === 'external') return '<span class="um-status-badge um-status-pending">External</span>';
   return '<span class="um-status-badge um-status-none">Missing</span>';
 }
 
@@ -781,7 +794,8 @@ function renderProfile(d) {
   html += docUpload('p_dqf_road_test_doc', 'Road Test Certificate', d.dqf_road_test_doc);
   html += '</div>';
 
-  // 382 — Drug & Alcohol Testing (multiple reasons per 49 CFR 382)
+  // 382 — Drug & Alcohol Testing (conditional on record-keeping model)
+  if (dnaSettings.model === 'driven') {
   html += '<div class="dqf-grid" style="margin-bottom:16px;">';
   html += '<div class="dqf-field"><label>Drug Test — Date</label><input type="date" id="p_drug_test_date" value="' + esc(d.drug_test_date||'') + '"></div>';
   html += '<div class="dqf-field"><label>Drug Test Reason (382)</label><select id="p_dqf_drug_test_reason"><option value="">—</option><option value="preemployment"'+(d.dqf_drug_test_reason==='preemployment'?' selected':'')+'>Pre-Employment (382.301)</option><option value="post_accident"'+(d.dqf_drug_test_reason==='post_accident'?' selected':'')+'>Post-Accident (382.303)</option><option value="random"'+(d.dqf_drug_test_reason==='random'?' selected':'')+'>Random (382.305)</option><option value="reasonable_suspicion"'+(d.dqf_drug_test_reason==='reasonable_suspicion'?' selected':'')+'>Reasonable Suspicion (382.307)</option><option value="return_to_duty"'+(d.dqf_drug_test_reason==='return_to_duty'?' selected':'')+'>Return-to-Duty (382.309)</option><option value="follow_up"'+(d.dqf_drug_test_reason==='follow_up'?' selected':'')+'>Follow-Up (382.311)</option></select></div>';
@@ -796,6 +810,35 @@ function renderProfile(d) {
   html += '<div class="dqf-field"><label>Alcohol Test Result</label><select id="p_dqf_alcohol_test_result"><option value="">—</option><option value="negative"'+(d.dqf_alcohol_test_result==='negative'?' selected':'')+'>Negative (&lt;0.02 BAC)</option><option value="positive"'+(d.dqf_alcohol_test_result==='positive'?' selected':'')+'>Positive (&ge;0.04 BAC)</option><option value="refused"'+(d.dqf_alcohol_test_result==='refused'?' selected':'')+'>Refused</option><option value="pending"'+(d.dqf_alcohol_test_result==='pending'?' selected':'')+'>Pending</option></select></div>';
   html += docUpload('p_dqf_alcohol_test_doc', 'Alcohol Test Document', d.dqf_alcohol_test_doc);
   html += '</div>';
+  } else if (dnaSettings.model === 'tpa') {
+    html += '<div style="margin-bottom:16px; padding:12px 14px; background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; font-size:13px; color:#1e40af;">';
+    html += '<strong>Drug &amp; Alcohol Records — Maintained by TPA</strong><br>';
+    html += 'Per your Carrier Dashboard settings, drug &amp; alcohol testing records are maintained by your Third-Party Administrator, not in DRIV-EN.';
+    if (dnaSettings.tpa_name) html += '<br><strong>TPA:</strong> ' + esc(dnaSettings.tpa_name);
+    if (dnaSettings.tpa_contact) html += '<br><strong>Contact:</strong> ' + esc(dnaSettings.tpa_contact);
+    if (dnaSettings.tpa_account) html += '<br><strong>Account #:</strong> ' + esc(dnaSettings.tpa_account);
+    html += '<br><em style="font-size:12px;">Audit packets will include a page stating records are held by your TPA.</em>';
+    html += '</div>';
+  } else if (dnaSettings.model === 'clearinghouse') {
+    html += '<div style="margin-bottom:16px; padding:12px 14px; background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; font-size:13px; color:#1e40af;">';
+    html += '<strong>Drug &amp; Alcohol Records — FMCSA Clearinghouse</strong><br>';
+    html += 'Per your Carrier Dashboard settings, drug &amp; alcohol records are maintained in the FMCSA Clearinghouse. Use the Clearinghouse query tracking below.';
+    html += '</div>';
+  } else {
+    html += '<div style="margin-bottom:16px; padding:12px 14px; background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; font-size:13px; color:#1e40af;">';
+    html += '<strong>Drug &amp; Alcohol Records — Physical Secure File</strong><br>';
+    html += 'Per your Carrier Dashboard settings, drug &amp; alcohol testing records are maintained in a physical secure file. Audit packets will include a reference page.';
+    html += '</div>';
+  }
+
+  // FMCSA Clearinghouse query tracking (shown when enabled, regardless of model)
+  if (dnaSettings.clearinghouse_tracking) {
+    html += '<div class="dqf-grid" style="margin-bottom:16px;">';
+    html += '<div class="dqf-field"><label>Clearinghouse Query — Date</label><input type="date" id="p_ch_query_date" value="' + esc(d.ch_query_date||'') + '"></div>';
+    html += '<div class="dqf-field"><label>Query Type</label><select id="p_ch_query_type"><option value="">—</option><option value="preemployment"'+(d.ch_query_type==='preemployment'?' selected':'')+'>Pre-Employment (Full)</option><option value="annual"'+(d.ch_query_type==='annual'?' selected':'')+'>Annual (Limited)</option></select></div>';
+    html += '<div class="dqf-field"><label>Query Result</label><select id="p_ch_query_result"><option value="">—</option><option value="clear"'+(d.ch_query_result==='clear'?' selected':'')+'>Clear</option><option value="not_clear"'+(d.ch_query_result==='not_clear'?' selected':'')+'>Not Clear / Prohibited</option><option value="pending"'+(d.ch_query_result==='pending'?' selected':'')+'>Pending</option></select></div>';
+    html += '</div>';
+  }
 
   // 391.43 — Medical Examiner Information
   html += '<div class="dqf-grid" style="margin-bottom:16px;">';
@@ -1206,6 +1249,9 @@ async function saveDqfProfile(complete) {
     dqf_alcohol_test_date: getV('p_dqf_alcohol_test_date'),
     dqf_alcohol_test_reason: getV('p_dqf_alcohol_test_reason'),
     dqf_alcohol_test_result: getV('p_dqf_alcohol_test_result'),
+    ch_query_date: getV('p_ch_query_date'),
+    ch_query_type: getV('p_ch_query_type'),
+    ch_query_result: getV('p_ch_query_result'),
     dqf_safety_perf_date: getV('p_dqf_safety_perf_date'),
     dqf_safety_perf_result: getV('p_dqf_safety_perf_result'),
     dqf_hazmat_date: getV('p_dqf_hazmat_date'),
@@ -1282,6 +1328,16 @@ async function saveDqfProfile(complete) {
     complete = false; // Can't mark as complete if documents are missing
   } else if (complete) {
     payload.step2_status = 'complete'; // all data + all documents present
+  }
+
+  // If drug/alcohol records are maintained elsewhere (TPA/Clearinghouse/physical),
+  // don't overwrite any stored test data with blanks from the hidden fields.
+  if (dnaSettings.model !== 'driven') {
+    ['drug_test_date','drug_test_recheck','drug_test_status','dqf_drug_test_reason','dqf_preemp_drug_date','dqf_preemp_drug_result','dqf_alcohol_test_date','dqf_alcohol_test_reason','dqf_alcohol_test_result'].forEach(function (k) { delete payload[k]; });
+  }
+  // Only persist Clearinghouse query fields when tracking is enabled
+  if (!dnaSettings.clearinghouse_tracking) {
+    ['ch_query_date','ch_query_type','ch_query_result'].forEach(function (k) { delete payload[k]; });
   }
 
   // Prior employers (49 CFR 391.23) — collect from the dynamic list
