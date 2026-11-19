@@ -76,11 +76,11 @@
     });
   }
 
-  // Show the Onboarding Dashboard link only while onboarding is NOT complete
-  function updateOnboardingLink() {
+  // Show the Onboarding Dashboard link only while onboarding is NOT complete.
+  // Source of truth is company_settings.onboarding_complete (server-side), not localStorage.
+  function updateOnboardingLink(complete) {
     var link = $('cdOnboardingLink');
     if (!link) return;
-    var complete = localStorage.getItem('driven_onboarding_complete') === 'true';
     link.style.display = complete ? 'none' : 'inline-flex';
   }
 
@@ -117,6 +117,7 @@
         if ($('dna_tpa_account') && settings.dna_tpa_account) $('dna_tpa_account').value = settings.dna_tpa_account;
         if ($('clearinghouse_tracking') && settings.clearinghouse_tracking !== undefined) $('clearinghouse_tracking').checked = Boolean(settings.clearinghouse_tracking);
         toggleTpaFields();
+        updateOnboardingLink(Boolean(settings.onboarding_complete));
       }
     } catch (e) {
       console.warn('Carrier settings load failed:', e);
@@ -186,7 +187,6 @@
     if (y) y.textContent = new Date().getFullYear();
     populateWelcome();
     wireTheme();
-    updateOnboardingLink();
 
     var sc = $('saveCarrierBtn'); if (sc) sc.addEventListener('click', saveCarrier);
     var sd = $('saveDnaBtn'); if (sd) sd.addEventListener('click', saveDna);
