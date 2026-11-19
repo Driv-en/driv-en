@@ -279,6 +279,9 @@
       if (!isStepVisible(STEP_DEFS[i].name)) continue;
       if (!isTaskFullyComplete(i)) { allDone = false; break; }
     }
+    // Persist a flag so other pages (e.g. Carrier Dashboard) can hide the
+    // Onboarding Dashboard link once onboarding is complete.
+    try { localStorage.setItem('driven_onboarding_complete', allDone ? 'true' : 'false'); } catch (e) {}
     return allDone;
   }
 
