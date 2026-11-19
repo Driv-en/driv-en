@@ -23,7 +23,7 @@ var DQF_MODAL_MAP = {
   },
   profile: {
     purpose: 'The <strong>Driver Profile</strong> is the full Driver Qualification File for a single commercial driver. It contains all DOT-required compliance documents and tracking, plus employee-owned assets with insurance and registration expiration tracking.',
-    instructions: '<ol><li><strong>Driver Compliance:</strong> Enter authorized company vehicle status, CDL class and endorsements, and upload DL front/back photos.</li><li><strong>Driving Record:</strong> Enter verified date, recheck date, and upload the driving record document. Status auto-calculates.</li><li><strong>DOT Medical Card:</strong> Enter expiration date and upload the document. Status auto-calculates.</li><li><strong>Background Check:</strong> Enter check date and recheck date. Status auto-calculates.</li><li><strong>Drug Test:</strong> Enter test date, reason (Pre-Employment, Post-Accident, Random, Reasonable Suspicion, Return-to-Duty, Follow-Up), and result. Upload the test document.</li><li><strong>Alcohol Test:</strong> Enter test date, reason, and result. Upload the test document.</li><li><strong>FMCSA Compliance:</strong> Fill in all applicable sections — Application (391.21), Employment Verification (391.23), Annual MVR Review (391.25), Road Test (391.31), CDLIS Verification (384.226), Safety Performance History (391.23(h)), Hazmat Background (TSA 1572), TWIC Card (49 CFR 1592). Each section has a document upload field.</li><li><strong>Additional Documents:</strong> Use the additional documents upload at the bottom of the FMCSA section for accident reports, citations, training certificates, or any other relevant documents.</li><li><strong>Document Viewer:</strong> Click the <strong>&#128065; View</strong> button next to any uploaded document to view it. The viewer supports images and PDFs with a print option.</li><li><strong>Employee-Owned Assets:</strong> Toggle \"Will this driver provide personal assets?\" If yes, click <strong>+ Add Asset</strong> for each asset (truck, welding machine, etc.). For vehicles, enter insurance carrier, policy number, expiration, and upload the insurance document. Insurance status auto-calculates with 30-day and 7-day warnings.</li><li><strong>File Status (auto-determined on save):</strong><br>&bull; <strong>Complete</strong> (green) — all data fields filled AND all 12 required documents uploaded<br>&bull; <strong>Docs Required</strong> (yellow) — all data fields filled but documents still need to be uploaded<br>&bull; <strong>Incomplete</strong> (orange) — data fields are still missing (dates, statuses, etc.)</li><li><strong>Save:</strong> Click <strong>Save &amp; Complete</strong> to mark the file as complete (only works if all data AND all 12 documents are uploaded), or <strong>Save &amp; Come Back Later</strong> to save progress. The system automatically sets the file status based on the criteria above.</li><li><strong>Print / PDF:</strong> Click <strong>&#128424; Print / PDF</strong> to generate a printable DQF summary with carrier info and all compliance data. Use your browser\'s print dialog to print or save as PDF.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Driver List</strong> to return to the list.</li></ol>'
+    instructions: '<ol><li><strong>Driver Compliance:</strong> Enter authorized company vehicle status, CDL class and endorsements, and upload DL front/back photos.</li><li><strong>Driving Record:</strong> Enter verified date, recheck date, and upload the driving record document. Status auto-calculates.</li><li><strong>DOT Medical Card:</strong> Enter expiration date and upload the document. Status auto-calculates.</li><li><strong>Background Check:</strong> Enter check date and recheck date. Status auto-calculates.</li><li><strong>Drug Test:</strong> Enter test date, reason (Pre-Employment, Post-Accident, Random, Reasonable Suspicion, Return-to-Duty, Follow-Up), and result. Upload the test document. <em>Note: there is no per-driver annual drug test requirement — random testing is pool-based (382.305). The Drug Test badge therefore shows <strong>On File</strong> or <strong>Missing</strong>, not a date-based current/expired.</em></li><li><strong>Alcohol Test:</strong> Enter test date, reason, and result. Upload the test document.</li><li><strong>Prior Employers (49 CFR 391.23):</strong> You must investigate employment history for the <strong>past 3 years</strong>. Click <strong>+ Add Employer</strong> for each prior employer and record: employer name, from/to dates, inquiry sent date, response received date, and the safety-performance results — <strong>accidents reported</strong>, <strong>drug/alcohol violations</strong>, and <strong>refusal to test</strong> (each Yes/No/Pending, with details). Contact name, phone, fax, email, and address are optional (the address is on the attached form).</li><li><strong>Employer Contact Directory:</strong> Use the <strong>Search known employers</strong> box above the prior-employer list to look up contact info for a former carrier. Selecting a result auto-fills a new employer block with the saved contact details. The directory grows automatically as you save prior employers that have contact info, so the next hire can find that carrier's contact quickly.</li><li><strong>FMCSA Compliance:</strong> Fill in all applicable sections — Application (391.21), Employment Verification (391.23), Annual MVR Review (391.25), Road Test (391.31), CDLIS Verification (384.226), Safety Performance History (391.23(h)), Hazmat Background (TSA 1572), TWIC Card (49 CFR 1592). Each section has a document upload field.</li><li><strong>Additional Documents:</strong> Use the additional documents upload at the bottom of the FMCSA section for accident reports, citations, training certificates, or any other relevant documents.</li><li><strong>Document Viewer:</strong> Click the <strong>&#128065; View</strong> button next to any uploaded document to view it. The viewer supports images and PDFs with a print option.</li><li><strong>Employee-Owned Assets:</strong> Toggle \"Will this driver provide personal assets?\" If yes, click <strong>+ Add Asset</strong> for each asset (truck, welding machine, etc.). For vehicles, enter insurance carrier, policy number, expiration, and upload the insurance document. Insurance status auto-calculates with 30-day and 7-day warnings.</li><li><strong>Status badges (computed from actual data):</strong> The DL, Med Card, Background, and Auto Policy badges are calculated from their dates (recheck/expiration), so they are always accurate — even for imported drivers. Drug Test shows On File/Missing.</li><li><strong>File Status (computed from actual data):</strong><br>&bull; <strong>Complete</strong> (green) — core data present AND all 12 required documents uploaded<br>&bull; <strong>Docs Required</strong> (yellow) — core data present but documents still need to be uploaded<br>&bull; <strong>Incomplete</strong> (orange) — core data still missing (CDL, med card, driving record, drug test, background)<br><em>Imported drivers start as Docs Required (data from the CSV, no documents yet) — they are never shown as Complete until documents are uploaded.</em></li><li><strong>Save:</strong> Click <strong>Save &amp; Complete</strong> to mark the file as complete (only works if all data AND all 12 documents are uploaded), or <strong>Save &amp; Come Back Later</strong> to save progress. The system automatically sets the file status based on the criteria above.</li><li><strong>Print / PDF:</strong> Click <strong>&#128424; Print / PDF</strong> to generate a printable DQF summary with carrier info and all compliance data. Use your browser\'s print dialog to print or save as PDF.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Driver List</strong> to return to the list.</li></ol>'
   }
 };
 
@@ -150,10 +150,12 @@ function updateKpis() {
   document.getElementById('kpiTotal').textContent = allDrivers.length;
   document.getElementById('kpiPending').textContent = allDrivers.filter(function(d) { return d.step2_status === 'pending' || !d.step2_status; }).length;
   document.getElementById('kpiExpired').textContent = allDrivers.filter(function(d) {
-    return ['driving_record_status','medical_card_status','background_check_status','drug_test_status','auto_policy_status'].some(function(k) { return d[k] === 'expired'; });
+    var cs = computeDriverStatuses(d);
+    return ['driving_record_status','medical_card_status','background_check_status','auto_policy_status'].some(function(k) { return cs[k] === 'expired'; });
   }).length;
   document.getElementById('kpiCurrent').textContent = allDrivers.filter(function(d) {
-    return d.step2_status === 'complete' && !['driving_record_status','medical_card_status','background_check_status','drug_test_status','auto_policy_status'].some(function(k) { return d[k] === 'expired' || d[k] === '7day' || d[k] === '30day'; });
+    var cs = computeDriverStatuses(d);
+    return computeFileStatus(d) === 'complete' && !['driving_record_status','medical_card_status','background_check_status','auto_policy_status'].some(function(k) { return cs[k] === 'expired' || cs[k] === '7day' || cs[k] === '30day'; });
   }).length;
   // Documents Needed: drivers missing one or more required documents
   var docsNeeded = allDrivers.filter(function(d) {
@@ -163,7 +165,7 @@ function updateKpis() {
   if (docsEl) docsEl.textContent = docsNeeded;
   // Docs Required status count
   var docsReqEl = document.getElementById('kpiDocsRequired');
-  if (docsReqEl) docsReqEl.textContent = allDrivers.filter(function(d) { return d.step2_status === 'docs_required'; }).length;
+  if (docsReqEl) docsReqEl.textContent = allDrivers.filter(function(d) { return computeFileStatus(d) === 'docs_required'; }).length;
 }
 
 function checkReminders() {
@@ -240,11 +242,15 @@ function renderDriverTable() {
     if (!name.trim()) name = d.full_name || d.email || 'Unknown';
     var tr = document.createElement('tr');
     var cells = '';
+    var cs = computeDriverStatuses(d);
+    var fs = computeFileStatus(d);
     DQF_COL_DEFS.forEach(function(col) {
       if (col.key === 'name') cells += '<td>' + esc(name) + '</td>';
       else if (col.key === 'cdl_class') cells += '<td>' + esc(d.cdl_class && d.cdl_class !== 'none' ? d.cdl_class : '\u2014') + '</td>';
       else if (col.key === 'actions') cells += '<td><button class="dqf-row-action" onclick="openDriverProfile(\'' + esc(d.id) + '\')">Open File</button></td>';
-      else if (col.key === 'step2_status') cells += '<td>' + fileStatusBadge(d.step2_status) + '</td>';
+      else if (col.key === 'step2_status') cells += '<td>' + fileStatusBadge(fs) + '</td>';
+      else if (col.key === 'drug_test_status') cells += '<td>' + drugTestBadge(cs.drug_test_status) + '</td>';
+      else if (col.key === 'driving_record_status' || col.key === 'medical_card_status' || col.key === 'background_check_status' || col.key === 'auto_policy_status') cells += '<td>' + badge(cs[col.key]) + '</td>';
       else if (col.key === 'documents') {
         var docCount = 0;
         DQF_REQUIRED_DOCS.forEach(function(doc) { if (d[doc.field]) docCount++; });
@@ -442,6 +448,167 @@ function fileStatusBadge(s) {
   return '<span class="um-status-badge um-status-none">—</span>';
 }
 
+// Derive a due/recheck date by adding months to a base date
+function addMonths(dateStr, months) {
+  if (!dateStr) return '';
+  var d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
+// Compute display statuses from ACTUAL data (not the stored status columns),
+// so imported drivers and edited drivers are always accurate.
+function computeDriverStatuses(d) {
+  var medCard = calcStatus(d.medical_card_expiration);
+  var drivingRecord = calcStatus(d.driving_record_recheck_date || addMonths(d.driving_record_verified, 12));
+  var background = calcStatus(d.background_check_recheck || addMonths(d.background_check_date, 12));
+  // Drug tests have no per-driver annual requirement (random is pool-based),
+  // so the badge reflects whether a test is on file, not a date window.
+  var drugTest = (d.drug_test_date || d.dqf_preemp_drug_date) ? 'on_file' : 'missing';
+  var autoPolicy = d.auto_policy_status || 'none';
+  return {
+    medical_card_status: medCard,
+    driving_record_status: drivingRecord,
+    background_check_status: background,
+    drug_test_status: drugTest,
+    auto_policy_status: autoPolicy
+  };
+}
+
+function drugTestBadge(status) {
+  if (status === 'on_file') return '<span class="um-status-badge um-status-current">On File</span>';
+  return '<span class="um-status-badge um-status-none">Missing</span>';
+}
+
+// Compute File Status dynamically: complete / docs_required / incomplete
+function computeFileStatus(d) {
+  var missingDocs = checkMissingDocuments(d);
+  if (missingDocs.length === 0) return 'complete';
+  var core = ['cdl_class','medical_card_expiration','driving_record_verified','drug_test_date','background_check_date'];
+  var missingCore = core.filter(function (f) { var v = d[f]; return !v || v === '' || v === 'none' || v === 'pending'; });
+  return missingCore.length > 0 ? 'incomplete' : 'docs_required';
+}
+
+// ============================================================
+// PRIOR EMPLOYERS (49 CFR 391.23) + EMPLOYER CONTACT DIRECTORY
+// ============================================================
+var priorEmployers = [];
+
+function parsePriorEmployers(raw) {
+  if (!raw) return [];
+  try { var arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch (e) { return []; }
+}
+
+function ynOpts(val) {
+  var opts = [['', '—'], ['yes', 'Yes'], ['no', 'No'], ['pending', 'Pending']];
+  return opts.map(function (o) { return '<option value="' + o[0] + '"' + (val === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
+}
+
+function renderPriorEmployers() {
+  var container = document.getElementById('p_prior_employers_container');
+  if (!container) return;
+  if (!priorEmployers.length) {
+    container.innerHTML = '<div style="font-size:12px; color:var(--text-muted,#64748b); padding:8px;">No prior employers added yet. Click "+ Add Employer" to add one (required for the past 3 years).</div>';
+    return;
+  }
+  var html = '';
+  priorEmployers.forEach(function (e, i) {
+    html += '<div class="pe-block" data-idx="' + i + '" style="border:1px solid var(--border,#cbd5e1); border-radius:8px; padding:12px; margin-bottom:12px; background:var(--bg-card,#fff);">';
+    html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><strong style="font-size:13px;">Employer #' + (i + 1) + '</strong><button type="button" onclick="removePriorEmployer(' + i + ')" style="padding:4px 10px; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; border-radius:4px; cursor:pointer; font-size:12px;">Remove</button></div>';
+    html += '<div class="dqf-grid">';
+    html += '<div class="dqf-field dqf-field-full"><label>Employer Name</label><input type="text" id="pe_' + i + '_name" value="' + esc(e.name || '') + '"></div>';
+    html += '<div class="dqf-field"><label>From (date)</label><input type="date" id="pe_' + i + '_from" value="' + esc(e.from || '') + '"></div>';
+    html += '<div class="dqf-field"><label>To (date)</label><input type="date" id="pe_' + i + '_to" value="' + esc(e.to || '') + '"></div>';
+    html += '<div class="dqf-field"><label>Inquiry Sent</label><input type="date" id="pe_' + i + '_inquiry" value="' + esc(e.inquiry_date || '') + '"></div>';
+    html += '<div class="dqf-field"><label>Response Received</label><input type="date" id="pe_' + i + '_response" value="' + esc(e.response_date || '') + '"></div>';
+    html += '<div class="dqf-field"><label>Accidents Reported</label><select id="pe_' + i + '_accidents">' + ynOpts(e.accidents) + '</select></div>';
+    html += '<div class="dqf-field"><label>Drug/Alcohol Violations</label><select id="pe_' + i + '_drug">' + ynOpts(e.drug_alcohol) + '</select></div>';
+    html += '<div class="dqf-field"><label>Refusal to Test</label><select id="pe_' + i + '_refusal">' + ynOpts(e.refusal) + '</select></div>';
+    html += '<div class="dqf-field dqf-field-full"><label>Accident Details (if any)</label><input type="text" id="pe_' + i + '_accidents_details" value="' + esc(e.accidents_details || '') + '"></div>';
+    html += '<div class="dqf-field dqf-field-full"><label>Drug/Alcohol Details (if any)</label><input type="text" id="pe_' + i + '_drug_details" value="' + esc(e.drug_alcohol_details || '') + '"></div>';
+    html += '<div class="dqf-field"><label>Contact Name</label><input type="text" id="pe_' + i + '_contact_name" value="' + esc(e.contact_name || '') + '"></div>';
+    html += '<div class="dqf-field"><label>Phone</label><input type="text" id="pe_' + i + '_phone" value="' + esc(e.phone || '') + '"></div>';
+    html += '<div class="dqf-field"><label>Fax</label><input type="text" id="pe_' + i + '_fax" value="' + esc(e.fax || '') + '"></div>';
+    html += '<div class="dqf-field"><label>Email</label><input type="text" id="pe_' + i + '_email" value="' + esc(e.email || '') + '"></div>';
+    html += '<div class="dqf-field dqf-field-full"><label>Address (optional)</label><input type="text" id="pe_' + i + '_address" value="' + esc(e.address || '') + '"></div>';
+    html += '</div></div>';
+  });
+  container.innerHTML = html;
+}
+
+function addPriorEmployer(prefill) {
+  collectPriorEmployers();
+  priorEmployers.push(prefill || { name: '', from: '', to: '', inquiry_date: '', response_date: '', accidents: '', drug_alcohol: '', refusal: '', accidents_details: '', drug_alcohol_details: '', contact_name: '', phone: '', fax: '', email: '', address: '' });
+  renderPriorEmployers();
+}
+
+function removePriorEmployer(idx) {
+  collectPriorEmployers();
+  priorEmployers.splice(idx, 1);
+  renderPriorEmployers();
+}
+
+function collectPriorEmployers() {
+  var blocks = document.querySelectorAll('#p_prior_employers_container .pe-block');
+  if (!blocks.length) return priorEmployers;
+  var arr = [];
+  blocks.forEach(function (b) {
+    var i = b.getAttribute('data-idx');
+    function v(f) { var el = document.getElementById('pe_' + i + '_' + f); return el ? el.value : ''; }
+    arr.push({
+      name: v('name'), from: v('from'), to: v('to'),
+      inquiry_date: v('inquiry'), response_date: v('response'),
+      accidents: v('accidents'), drug_alcohol: v('drug'), refusal: v('refusal'),
+      accidents_details: v('accidents_details'), drug_alcohol_details: v('drug_details'),
+      contact_name: v('contact_name'), phone: v('phone'), fax: v('fax'), email: v('email'), address: v('address')
+    });
+  });
+  priorEmployers = arr;
+  return arr;
+}
+
+var _empSearchTimer = null;
+function searchEmployerDirectory(q) {
+  var resultsEl = document.getElementById('p_employer_search_results');
+  if (!resultsEl) return;
+  q = (q || '').trim();
+  if (q.length < 2) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; return; }
+  clearTimeout(_empSearchTimer);
+  _empSearchTimer = setTimeout(function () {
+    fetch('/api/employer-contacts?search=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var contacts = (data && data.contacts) || [];
+        if (!contacts.length) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; return; }
+        var h = '<div style="border:1px solid var(--border,#cbd5e1); border-radius:6px; background:var(--bg-card,#fff); max-height:220px; overflow:auto;">';
+        contacts.forEach(function (c) {
+          var payload = JSON.stringify(c).replace(/'/g, '&#39;');
+          h += '<div onclick=\'useEmployerContact(' + payload + ')\' style="padding:8px 12px; border-bottom:1px solid var(--border,#e2e8f0); cursor:pointer; font-size:13px;">';
+          h += '<strong>' + esc(c.employer_name) + '</strong>';
+          var bits = [c.contact_name, c.phone, c.email].filter(Boolean).join(' · ');
+          if (bits) h += '<div style="font-size:12px; color:var(--text-muted,#64748b);">' + esc(bits) + '</div>';
+          h += '</div>';
+        });
+        h += '</div>';
+        resultsEl.innerHTML = h;
+        resultsEl.style.display = 'block';
+      }).catch(function () {});
+  }, 250);
+}
+
+function useEmployerContact(c) {
+  addPriorEmployer({
+    name: c.employer_name || '', from: '', to: '', inquiry_date: '', response_date: '',
+    accidents: '', drug_alcohol: '', refusal: '', accidents_details: '', drug_alcohol_details: '',
+    contact_name: c.contact_name || '', phone: c.phone || '', fax: c.fax || '', email: c.email || '', address: c.address || ''
+  });
+  var resultsEl = document.getElementById('p_employer_search_results');
+  if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
+  var searchEl = document.getElementById('p_employer_search');
+  if (searchEl) searchEl.value = '';
+}
+
 // ============================================================
 // TAB SWITCHING
 // ============================================================
@@ -583,7 +750,11 @@ function renderProfile(d) {
   html += '<div class="dqf-field"><label>Previous Employment Verification — Date Initiated (391.23)</label><input type="date" id="p_dqf_emp_verification_date" value="' + esc(d.dqf_emp_verification_date||'') + '"></div>';
   html += '<div class="dqf-field"><label>Verification Status</label><select id="p_dqf_emp_verification_status"><option value="">—</option><option value="pending"'+(d.dqf_emp_verification_status==='pending'?' selected':'')+'>Pending</option><option value="complete"'+(d.dqf_emp_verification_status==='complete'?' selected':'')+'>Complete</option><option value="incomplete"'+(d.dqf_emp_verification_status==='incomplete'?' selected':'')+'>Incomplete</option></select></div>';
   html += docUpload('p_dqf_emp_verification_doc', 'Verification Document', d.dqf_emp_verification_doc);
-  html += '<div class="dqf-field dqf-field-full"><label>Prior Employers (3-year history)</label><textarea id="p_dqf_emp_verification_notes" rows="3" placeholder="List each prior employer, dates employed, inquiry date, response received">' + esc(d.dqf_emp_verification_notes||'') + '</textarea></div>';
+  html += '<div class="dqf-field dqf-field-full"><label>Prior Employers (3-year history — 49 CFR 391.23)</label>';
+  html += '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;"><input type="text" id="p_employer_search" placeholder="Search known employers to auto-fill contact info…" oninput="searchEmployerDirectory(this.value)" style="flex:1; min-width:200px;"><button type="button" onclick="addPriorEmployer()" style="padding:8px 14px; background:#16a34a; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600; white-space:nowrap;">+ Add Employer</button></div>';
+  html += '<div id="p_employer_search_results" style="display:none; margin-bottom:8px;"></div>';
+  html += '<div id="p_prior_employers_container"></div>';
+  html += '</div>';
   html += '</div>';
 
   // 391.25 — Annual MVR Review
@@ -695,6 +866,9 @@ function renderProfile(d) {
   html += '</div>';
 
   document.getElementById('dqfProfileContent').innerHTML = html;
+  // Initialize prior employers list
+  priorEmployers = parsePriorEmployers(d.dqf_prior_employers);
+  renderPriorEmployers();
   // Filter endorsements based on current CDL class
   setTimeout(function() { updateCdlEndorsements(); }, 0);
   // Highlight empty fields with yellow background (needs attention)
@@ -1109,6 +1283,23 @@ async function saveDqfProfile(complete) {
   } else if (complete) {
     payload.step2_status = 'complete'; // all data + all documents present
   }
+
+  // Prior employers (49 CFR 391.23) — collect from the dynamic list
+  var peList = collectPriorEmployers();
+  payload.dqf_prior_employers = JSON.stringify(peList);
+  // Auto-populate the per-org employer contact directory from any employer that has contact info
+  peList.forEach(function (pe) {
+    if (pe && pe.name && (pe.phone || pe.email || pe.fax || pe.contact_name)) {
+      fetch('/api/employer-contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employer_name: pe.name, contact_name: pe.contact_name, phone: pe.phone,
+          fax: pe.fax, email: pe.email, address: pe.address, source: 'prior_employer'
+        })
+      }).catch(function () {});
+    }
+  });
 
   console.log('DQF save payload:', payload);
   try {
