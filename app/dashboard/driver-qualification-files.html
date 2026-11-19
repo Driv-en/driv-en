@@ -485,17 +485,21 @@
   <script>
     // Dynamically set --header-height to match actual header element
     function syncHeaderHeight() {
-      var header = document.querySelector('.admin-header, #adminHeader, header, .header');
+      var header = document.querySelector('#dashHeader > *') || document.querySelector('.admin-header, #adminHeader, header, .header, #dashHeader');
       if (header) {
-        var h = header.offsetHeight;
-        document.documentElement.style.setProperty('--header-height', h + 'px');
+        var h = header.offsetHeight || header.getBoundingClientRect().height;
+        if (h > 0) document.documentElement.style.setProperty('--header-height', Math.round(h) + 'px');
       }
     }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function() { setTimeout(syncHeaderHeight, 100); });
-    } else { setTimeout(syncHeaderHeight, 100); }
+    // Run multiple times to catch dynamic header loading
+    [100, 300, 500, 1000, 2000].forEach(function(delay) { setTimeout(syncHeaderHeight, delay); });
     window.addEventListener('load', function() { setTimeout(syncHeaderHeight, 200); });
     window.addEventListener('resize', syncHeaderHeight);
+    // Also observe #dashHeader for when auth-check.js injects the header
+    var dashHeader = document.getElementById('dashHeader');
+    if (dashHeader && window.MutationObserver) {
+      new MutationObserver(function() { syncHeaderHeight(); }).observe(dashHeader, { childList: true, subtree: true });
+    }
   </script>
   <script src="/app/shared/dashboard-common.js?v=20"></script>
   <script src="/app/shared/translate.js?v=3"></script>
@@ -514,7 +518,7 @@
     </div>
   </div>
 
-  <script src="/app/dashboard/driver-qualification-files.js?v=14"></script>
+  <script src="/app/dashboard/driver-qualification-files.js?v=15"></script>
   <script src="/app/dashboard/dqf-import.js?v=4"></script>
 </body>
 </html>
