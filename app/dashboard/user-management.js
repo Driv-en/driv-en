@@ -916,7 +916,7 @@ function renderEmpTable() {
     atd.className = 'am-actions';
     atd.style.width = '140px';
     atd.style.minWidth = '140px';
-    atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn" onclick="openEmpViewModal(\'' + e.id + '\')">View</button><button class="um-table-btn" onclick="openEmpEditModal(\'' + e.id + '\')">Edit</button></div>';
+    atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn" onclick="window.location.href=\'/app/dashboard/employee-form.html?id=' + encodeURIComponent(e.id) + '&view=1\'">View</button><button class="um-table-btn" onclick="window.location.href=\'/app/dashboard/employee-form.html?id=' + encodeURIComponent(e.id) + '\'">Edit</button></div>';
     tr.appendChild(atd);
     tb.appendChild(tr);
   });
