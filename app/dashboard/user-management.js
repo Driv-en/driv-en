@@ -733,6 +733,7 @@ async function loadOrgRoles() {
   renderRolesTable();
   populateRoleSelect();
   buildMultiSelectPanels();
+  renderEmpTable();
 }
 
 async function loadActivityLog() {
@@ -849,6 +850,16 @@ function renderUserTableHead() {
   attachDragAndDropHeaders('user', USER_COL_DEFS, renderUserTableHead, renderUserTable);
 }
 
+function resolveRoleName(val) {
+  if (!val || val === '\u2014') return val;
+  var s = String(val);
+  var byId = allOrgRoles.find(function(r) { return String(r.id) === s; });
+  if (byId) return byId.name || s;
+  var byName = allOrgRoles.find(function(r) { return String(r.name || '').toLowerCase() === s.toLowerCase(); });
+  if (byName) return byName.name || s;
+  return s;
+}
+
 function renderEmpTable() {
   var tb = document.getElementById('empTableBody');
   tb.textContent = '';
@@ -858,9 +869,10 @@ function renderEmpTable() {
   var frozenCalc = calculateFrozenOffsets(EMP_COL_DEFS, visibleEmpCols, empColWidths);
 
   var filtered = allEmployees.filter(function(e) {
-    var matchSearch = !search || e.fullName.toLowerCase().indexOf(search) !== -1 || e.email.toLowerCase().indexOf(search) !== -1 || e.employeeNumber.toLowerCase().indexOf(search) !== -1 || e.role.toLowerCase().indexOf(search) !== -1 || e.phone.toLowerCase().indexOf(search) !== -1 || e.state.toLowerCase().indexOf(search) !== -1;
+    var roleName = resolveRoleName(e.role);
+    var matchSearch = !search || e.fullName.toLowerCase().indexOf(search) !== -1 || e.email.toLowerCase().indexOf(search) !== -1 || e.employeeNumber.toLowerCase().indexOf(search) !== -1 || roleName.toLowerCase().indexOf(search) !== -1 || e.phone.toLowerCase().indexOf(search) !== -1 || e.state.toLowerCase().indexOf(search) !== -1;
     var matchStatus = selStatuses.length === 0 || selStatuses.indexOf(e.status.toLowerCase()) !== -1;
-    var matchRole = selRoles.length === 0 || selRoles.indexOf(e.role.toLowerCase()) !== -1;
+    var matchRole = selRoles.length === 0 || selRoles.indexOf(roleName.toLowerCase()) !== -1;
     return matchSearch && matchStatus && matchRole;
   });
 
@@ -892,6 +904,8 @@ function renderEmpTable() {
       var v = e[col.key];
       if (col.key === 'status') {
         td.innerHTML = '<span class="um-badge ' + (v === 'Active' ? 'um-badge-active' : 'um-badge-inactive') + '">' + escapeHtml(v) + '</span>';
+      } else if (col.key === 'role') {
+        td.textContent = resolveRoleName(v);
       } else {
         td.textContent = v;
       }
