@@ -19,7 +19,8 @@ var activeModalType = 'emp';
 var paginationState = {
   emp: { currentPage: 1, pageSize: 10 },
   user: { currentPage: 1, pageSize: 10 },
-  activity: { currentPage: 1, pageSize: 10 }
+  activity: { currentPage: 1, pageSize: 10 },
+  roles: { currentPage: 1, pageSize: 10 }
 };
 
 var sortState = {
@@ -275,6 +276,7 @@ function changePageSize(type, size) {
   if (type === 'emp') renderEmpTable();
   else if (type === 'user') renderUserTable();
   else if (type === 'activity') renderActivityLogTable();
+  else if (type === 'roles') renderRolesTable();
 }
 
 function changePage(type, delta) {
@@ -282,6 +284,7 @@ function changePage(type, delta) {
   if (type === 'emp') renderEmpTable();
   else if (type === 'user') renderUserTable();
   else if (type === 'activity') renderActivityLogTable();
+  else if (type === 'roles') renderRolesTable();
 }
 
 function updatePaginationUI(type, totalRecords) {
@@ -950,8 +953,20 @@ function renderRolesTable() {
   var container = document.getElementById('rolesTableBody');
   if (!container) return;
   container.innerHTML = '';
-  var sorted = sortArray(allOrgRoles, sortState.roles.key, sortState.roles.dir);
-  sorted.forEach(function(r) {
+  var search = (document.getElementById('roleSearch') ? document.getElementById('roleSearch').value : '').toLowerCase().trim();
+  var filtered = allOrgRoles.filter(function(r) {
+    return !search || String(r.name || '').toLowerCase().indexOf(search) !== -1 || String(r.description || '').toLowerCase().indexOf(search) !== -1;
+  });
+  var sorted = sortArray(filtered, sortState.roles.key, sortState.roles.dir);
+  updatePaginationUI('roles', sorted.length);
+  if (sorted.length === 0) {
+    container.innerHTML = '<tr><td colspan="4" class="um-empty">No roles found.</td></tr>';
+    updateSortIcons('roles');
+    return;
+  }
+  var pState = paginationState.roles;
+  var paged = sorted.slice((pState.currentPage - 1) * pState.pageSize, pState.currentPage * pState.pageSize);
+  paged.forEach(function(r) {
     var tr = document.createElement('tr');
     tr.setAttribute('data-role-id', r.id || '');
     var isSystem = r.is_system && r.is_system !== 0 && r.is_system !== '0' && r.is_system !== false;
@@ -983,6 +998,11 @@ function renderRolesTable() {
     container.appendChild(tr);
   });
   updateSortIcons('roles');
+}
+
+function onRoleSearchInput() {
+  paginationState.roles.currentPage = 1;
+  renderRolesTable();
 }
 
 function openAddRoleModal() {
@@ -1697,7 +1717,6 @@ function doPrint() {
   var origEmpPageSize = paginationState.emp.pageSize;
   var origUserPageSize = paginationState.user.pageSize;
   var origActPageSize = paginationState.activity.pageSize;
-
   paginationState.emp.pageSize = 9999;
   paginationState.user.pageSize = 9999;
   paginationState.activity.pageSize = 9999;
