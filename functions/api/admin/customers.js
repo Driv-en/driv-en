@@ -218,22 +218,21 @@ export async function onRequestGet(context) {
       }
     } catch (dbErr) { /* users table may not exist */ }
 
-    // Employee counts — from employees-db (EMPLOYEES-DB binding), active only
-    // NOTE: The employees table uses `customer_id` to link to the organization.
-    // NOTE: The binding name has a hyphen (EMPLOYEES-DB), so we use bracket notation.
+    // Employee counts — from driv-en-db (users + employee_details), active only
     try {
-      const empRows = await env['EMPLOYEES-DB'].prepare(
-        `SELECT customer_id, COUNT(*) as emp_count
-         FROM employees
-         WHERE status = 'Active' OR status = 'active'
-         GROUP BY customer_id`
+      const empRows = await env.DB.prepare(
+        `SELECT u.org_id, COUNT(*) as emp_count
+         FROM users u
+         JOIN employee_details d ON d.user_id = u.id
+         WHERE LOWER(d.employment_status) = 'active'
+         GROUP BY u.org_id`
       ).all();
       if (empRows.results) {
         for (const r of empRows.results) {
-          if (r.customer_id) employeeMap[r.customer_id] = r.emp_count;
+          if (r.org_id) employeeMap[r.org_id] = r.emp_count;
         }
       }
-    } catch (dbErr) { /* employees table may not exist yet */ }
+    } catch (dbErr) { /* employee_details may not exist yet */ }
 
     // =====================================================================
     // ENRICHMENT 2: order counts per org from orders table (if it exists)
