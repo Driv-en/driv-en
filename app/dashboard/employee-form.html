@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV-EN | Employee</title>
+<meta name="description" content="Add, edit, or view an employee record.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=12">
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", saved || system);
+})();
+</script>
+<style>
+  #dashStickyHeader { position: sticky !important; top: 0 !important; z-index: 100 !important; background: var(--bg-header, #f8fafc) !important; border-bottom: 1px solid var(--border, #cbd5e1) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .ef-utility-bar { width:100%; padding:6px 20px; box-sizing:border-box; display:flex; justify-content:flex-end; gap:8px; position:sticky !important; top:var(--header-height,58px) !important; z-index:9998 !important; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
+  :root[data-theme="dark"] .ef-utility-bar { background:#334155; border-bottom-color:#475569; }
+  .ef-utility-btn { padding:6px 14px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; border:2px solid; white-space:nowrap; }
+  .ef-utility-dashboard { background:#2563eb; color:#fff; border-color:#1d4ed8; }
+  .ef-utility-crosslink { background:#0d9488; color:#fff; border-color:#0f766e; }
+  .ef-utility-logout { background:#dc2626; color:#fff; border-color:#b91c1c; }
+  .ef-main { max-width:1000px; margin:0 auto; padding:20px; box-sizing:border-box; }
+  .ef-title-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+  .ef-title { font-size:22px; font-weight:800; color:var(--text,#0f172a); margin:0; }
+  .ef-mode-badge { font-size:12px; font-weight:700; padding:4px 12px; border-radius:9999px; background:#e0f2fe; color:#0369a1; }
+  .ef-section { background:var(--bg-card,#fff); border:2px solid var(--card-green-border,#16a34a); border-radius:10px; padding:18px; margin-bottom:18px; box-sizing:border-box; }
+  :root[data-theme="dark"] .ef-section { background:#1e293b; }
+  .ef-section h3 { margin:0 0 14px 0; font-size:15px; color:var(--text,#0f172a); display:flex; align-items:center; gap:8px; }
+  .ef-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; }
+  .ef-field { display:flex; flex-direction:column; }
+  .ef-field.full { grid-column:1 / -1; }
+  .ef-field label { font-size:12px; font-weight:600; color:var(--text-muted,#64748b); margin-bottom:5px; }
+  .ef-field input, .ef-field select { padding:9px 11px; border:1.5px solid #2563eb; border-radius:6px; font-size:14px; background:var(--bg-card,#fff); color:var(--text,#0f172a); box-sizing:border-box; width:100%; min-width:0; }
+  .ef-field input:focus, .ef-field select:focus { outline:none; border-color:#16a34a; box-shadow:0 0 0 2px rgba(22,163,74,0.15); }
+  .ef-field input:disabled, .ef-field select:disabled { background:#f1f5f9; color:#475569; border-color:#cbd5e1; }
+  .ef-field input[type="date"] { -webkit-appearance:none; appearance:none; }
+  .ef-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:8px; }
+  .ef-btn { padding:10px 22px; border-radius:6px; font-size:14px; font-weight:700; cursor:pointer; border:1px solid transparent; }
+  .ef-btn-save { background:#16a34a; color:#fff; }
+  .ef-btn-save:hover { background:#15803d; }
+  .ef-btn-cancel { background:#e2e8f0; color:#0f172a; border-color:#cbd5e1; }
+  .ef-status { margin-left:12px; font-size:13px; }
+  .ef-required-note { font-size:12px; color:var(--text-muted,#64748b); margin-bottom:12px; }
+  @media (max-width:768px){ .ef-main{padding:12px;} .ef-section{padding:14px;} }
+</style>
+</head>
+<body data-page-title="Employee">
+<div class="steel-bg"></div><div class="steel-overlay"></div>
+
+<div id="dashStickyHeader"><div id="dashHeader"></div></div>
+
+<div class="ef-utility-bar">
+  <button class="ef-utility-btn ef-utility-dashboard" onclick="efGoDashboard()">&#128202; Dashboard</button>
+  <a class="ef-utility-btn ef-utility-crosslink" href="/app/dashboard/user-management.html">&#128101; Employee Directory</a>
+  <a class="ef-utility-btn ef-utility-crosslink" href="/app/dashboard/driver-qualification-files.html">&#128665; DQF</a>
+  <button class="ef-utility-btn ef-utility-logout" onclick="efLogout()">&#128682; Logout</button>
+</div>
+
+<main class="ef-main">
+  <div class="ef-title-row">
+    <h1 class="ef-title" id="efTitle">Add New Employee</h1>
+    <span class="ef-mode-badge" id="efModeBadge" style="display:none;">View Only</span>
+  </div>
+  <p class="ef-required-note">Fields marked * are required. Voice dictation is available on text fields (microphone icon).</p>
+
+  <!-- Personal Information -->
+  <div class="ef-section">
+    <h3>&#128100; Personal Information</h3>
+    <div class="ef-grid">
+      <div class="ef-field"><label>First Name *</label><input type="text" id="efFn" placeholder="John" data-voice-input></div>
+      <div class="ef-field"><label>Middle Name</label><input type="text" id="efMn" placeholder="M." data-voice-input></div>
+      <div class="ef-field"><label>Last Name *</label><input type="text" id="efLn" placeholder="Doe" data-voice-input></div>
+      <div class="ef-field"><label>Suffix</label><input type="text" id="efSuffix" placeholder="Jr., III" data-voice-input></div>
+      <div class="ef-field"><label>Date of Birth</label><input type="date" id="efDob"></div>
+    </div>
+  </div>
+
+  <!-- Contact -->
+  <div class="ef-section">
+    <h3>&#128231; Contact</h3>
+    <div class="ef-grid">
+      <div class="ef-field"><label>Email Address</label><input type="email" id="efEmail" placeholder="john.doe@example.com" data-voice-input></div>
+      <div class="ef-field"><label>Phone Number</label><input type="tel" id="efPhone" placeholder="(555) 000-0000" data-voice-input></div>
+      <div class="ef-field full"><label>Street Address</label><input type="text" id="efAddress" placeholder="123 Main St" data-voice-input></div>
+      <div class="ef-field"><label>City</label><input type="text" id="efCity" placeholder="Dallas" data-voice-input></div>
+      <div class="ef-field"><label>State</label><input type="text" id="efState" placeholder="TX" data-voice-input></div>
+      <div class="ef-field"><label>Zip Code</label><input type="text" id="efZip" placeholder="75001" data-voice-input></div>
+    </div>
+  </div>
+
+  <!-- Employment -->
+  <div class="ef-section">
+    <h3>&#128188; Employment</h3>
+    <div class="ef-grid">
+      <div class="ef-field"><label>Employee Number</label><input type="text" id="efNum" placeholder="EMP-101" data-voice-input></div>
+      <div class="ef-field"><label>Role</label><select id="efRole"><option value="Employee">Employee</option><option value="Fleet Manager">Fleet Manager</option><option value="Admin">Admin</option></select></div>
+      <div class="ef-field"><label>Status</label><select id="efStatus"><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Terminated">Terminated</option></select></div>
+      <div class="ef-field"><label>Hire Date</label><input type="date" id="efHireDate"></div>
+      <div class="ef-field" id="efTermDateWrap" style="display:none;"><label>Termination Date</label><input type="date" id="efTermDate"></div>
+      <div class="ef-field"><label>Commercial Driver?</label><select id="efCommercialDriver"><option value="no">No</option><option value="yes">Yes</option></select></div>
+      <div class="ef-field"><label>Drives Co. Vehicle (Non-CDL)?</label><select id="efDrivesCoVehicle"><option value="no">No</option><option value="yes">Yes</option></select></div>
+      <div class="ef-field"><label>Uses Personal Vehicle/Asset?</label><select id="efUsesEmpAssets"><option value="no">No</option><option value="yes">Yes</option></select></div>
+    </div>
+  </div>
+
+  <!-- Driver's License -->
+  <div class="ef-section">
+    <h3>&#128196; Driver's License</h3>
+    <div class="ef-grid">
+      <div class="ef-field"><label>Driver's License #</label><input type="text" id="efDl" placeholder="DL12345678" data-voice-input></div>
+      <div class="ef-field"><label>DL State</label><input type="text" id="efDlState" placeholder="TX" data-voice-input></div>
+      <div class="ef-field"><label>DL Expiration</label><input type="date" id="efDlExp"></div>
+      <div class="ef-field"><label>DL Front Photo</label><input type="file" id="efDlFront" accept="image/*" style="font-size:13px;"></div>
+      <div class="ef-field"><label>DL Back Photo</label><input type="file" id="efDlBack" accept="image/*" style="font-size:13px;"></div>
+    </div>
+    <p class="ef-required-note" style="margin-top:10px; margin-bottom:0;">If your license front and back are on one image, upload the same file to both fields.</p>
+  </div>
+
+  <div class="ef-actions">
+    <button class="ef-btn ef-btn-cancel" onclick="efCancel()">Cancel</button>
+    <button class="ef-btn ef-btn-save" id="efSaveBtn" onclick="efSave()">Save Employee</button>
+    <span class="ef-status" id="efStatusMsg"></span>
+  </div>
+</main>
+
+<script src="/app/shared/dashboard-common.js?v=16"></script>
+<script src="/app/shared/auth-check.js?v=13"></script>
+<script src="/app/shared/translate.js?v=3"></script>
+<script src="/app/shared/voice.js?v=3"></script>
+<script src="/app/dashboard/employee-form.js?v=1"></script>
+</body>
+</html>
