@@ -40,7 +40,7 @@ var MODAL_CONTENT_MAP = {
   },
   employees: {
     purpose: 'The <strong>Employees Tab</strong> is the central directory for managing all employee records. Administrators can add, edit, view, search, filter, sort, export, and print employee information. Search and form fields support voice dictation via the microphone icon.',
-    instructions: '<ol><li><strong>Search with Voice:</strong> Use the search bar to find employees by name, email, employee number, role, phone, or state. Click the <strong>microphone icon</strong> (&#127908;) next to the search field to speak your search query instead of typing — the browser\'s Web Speech API transcribes your voice into the search box. Click the mic again to stop dictation.</li><li><strong>Filter:</strong> Use the Statuses and Roles dropdowns to filter by employment status or role.</li><li><strong>Add Employee with Voice:</strong> Click <strong>+ Add Employee</strong> to open the form modal. Fill in all required fields (First Name, Last Name) and optional fields. Each text field has a <strong>microphone icon</strong> (&#127908;) — click it to dictate that field\'s value by voice instead of typing. Click <strong>Save Employee</strong> when done.</li><li><strong>Edit Employee:</strong> Click the <strong>Edit</strong> button on any row to modify an existing employee record. Voice dictation is available on all form fields.</li><li><strong>View Details:</strong> Click <strong>View</strong> to see a read-only detail modal for any employee.</li><li><strong>Columns:</strong> Click <strong>Columns (Show / Hide)</strong> to toggle visibility of individual columns. Drag column headers to reorder. Drag column edges to resize.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print</strong> to select specific records or print all visible rows.</li><li><strong>Personalization:</strong> The Light/Dark toggle, Units of Measure, and Language selectors remain available in the welcome bar above.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Overview</strong> in the pill bar (top-right, next to Purpose and Instructions) to return to the Overview landing page.</li></ol>'
+    instructions: '<ol><li><strong>Search with Voice:</strong> Use the search bar to find employees by name, email, employee number, role, phone, or state. Click the <strong>microphone icon</strong> (&#127908;) next to the search field to speak your search query instead of typing — the browser\'s Web Speech API transcribes your voice into the search box. Click the mic again to stop dictation.</li><li><strong>Filter:</strong> Use the Statuses and Roles dropdowns to filter by employment status or role.</li><li><strong>Add Employee with Voice:</strong> Click <strong>+ Add Employee</strong> to open the form modal. Fill in all required fields (First Name, Last Name) and optional fields. Each text field has a <strong>microphone icon</strong> (&#127908;) — click it to dictate that field\'s value by voice instead of typing. Click <strong>Save Employee</strong> when done.</li><li><strong>Open an employee:</strong> Click anywhere on a row to open that employee\'s full page in view mode. On that page, click <strong>Edit</strong> (if you have permission) to make changes, then <strong>Save Employee</strong>.</li><li><strong>Add Employee:</strong> Click <strong>+ Add Employee</strong> to open a blank employee page for entering a new hire.</li><li><strong>Columns:</strong> Click <strong>Columns (Show / Hide)</strong> to toggle visibility of individual columns. Drag column headers to reorder. Drag column edges to resize.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print</strong> to select specific records or print all visible rows.</li><li><strong>Personalization:</strong> The Light/Dark toggle, Units of Measure, and Language selectors remain available in the welcome bar above.</li><li><strong>Back:</strong> Click <strong>&#8592; Back to Overview</strong> in the pill bar (top-right, next to Purpose and Instructions) to return to the Overview landing page.</li></ol>'
   },
   roles: {
     purpose: 'The <strong>Roles &amp; Permissions Tab</strong> displays all roles defined for your organization. This includes system roles (locked, cannot be edited or deleted) and custom roles that you can create, edit, and delete. Use this tab to manage the roles that control what employees and users can do across the platform.',
@@ -878,7 +878,7 @@ function renderEmpTable() {
 
   updatePaginationUI('emp', filtered.length);
   if (filtered.length === 0) {
-    tb.innerHTML = '<tr><td colspan="14" class="um-empty">No matching employees found.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="13" class="um-empty">No matching employees found.</td></tr>';
     return;
   }
 
@@ -912,12 +912,8 @@ function renderEmpTable() {
       tr.appendChild(td);
     });
 
-    var atd = document.createElement('td');
-    atd.className = 'am-actions';
-    atd.style.width = '140px';
-    atd.style.minWidth = '140px';
-    atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn" onclick="window.location.href=\'/app/dashboard/employee-form.html?id=' + encodeURIComponent(e.id) + '&view=1\'">View</button><button class="um-table-btn" onclick="window.location.href=\'/app/dashboard/employee-form.html?id=' + encodeURIComponent(e.id) + '\'">Edit</button></div>';
-    tr.appendChild(atd);
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', function() { window.location.href = '/app/dashboard/employee-form.html?id=' + encodeURIComponent(e.id) + '&view=1'; });
     tb.appendChild(tr);
   });
 }
@@ -953,11 +949,6 @@ function renderEmpTableHead() {
     tr.appendChild(h);
   });
 
-  var ha = document.createElement('th');
-  ha.textContent = 'Actions';
-  ha.style.width = '140px';
-  ha.style.minWidth = '140px';
-  tr.appendChild(ha);
   th.appendChild(tr);
 
   attachDragAndDropHeaders('emp', EMP_COL_DEFS, renderEmpTableHead, renderEmpTable);
