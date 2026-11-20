@@ -5,7 +5,7 @@
 //   1. Delete button removed from team members — only Activate/Deactivate
 //   2. Sticky tabs CSS added to .owner-tab-bar
 //   3. Logo loads from /auth/get-logo as fallback if localStorage is empty
-//   4. Error handler integration (DRIVENErrorHandler)
+//   4. Error handler integration  (DRIVENErrorHandler)
 // =========================================================================
 
 var allPartners = [];
